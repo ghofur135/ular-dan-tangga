@@ -7,11 +7,10 @@ import {
   Alert,
   Modal,
   Share,
-  Dimensions,
-  useWindowDimensions,
 } from 'react-native'
 import GameBoard from '../components/GameBoard'
 import DiceRoller from '../components/DiceRoller'
+import GameEventModal from '../components/GameEventModal'
 import { multiplayerService, OnlineRoom, OnlinePlayer, GameUpdate } from '../services/multiplayerService'
 import { calculateNewPosition, checkWin } from '../utils/boardLogic'
 import { STANDARD_BOARD, Player } from '../types/game'
@@ -31,19 +30,18 @@ interface OnlineGameScreenProps {
 
 export default function OnlineGameScreen({ navigation, route }: OnlineGameScreenProps) {
   const { room: initialRoom, player: myPlayer, isHost } = route.params
-  const { height: windowHeight } = useWindowDimensions()
 
-  const [room, setRoom] = useState<OnlineRoom>(initialRoom)
+  const [room] = useState<OnlineRoom>(initialRoom)
   const [players, setPlayers] = useState<OnlinePlayer[]>(route.params.players || [myPlayer])
   const [gameStatus, setGameStatus] = useState<'waiting' | 'playing' | 'finished'>(initialRoom.status)
   const [currentTurnIndex, setCurrentTurnIndex] = useState(0)
   const [lastDiceRoll, setLastDiceRoll] = useState<number | null>(null)
-  const [isRolling, setIsRolling] = useState(false)
-  const [winner, setWinner] = useState<string | null>(null)
-  const [showDiceResult, setShowDiceResult] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
-  const [animatingPlayerId, setAnimatingPlayerId] = useState<string | null>(null)
-  const [animationPosition, setAnimationPosition] = useState(1)
+  const [showDiceResult, setShowDiceResult] = useState(false)
+  const [winner, setWinner] = useState<string | null>(null)
+  const [showSnakeModal, setShowSnakeModal] = useState(false)
+  const [showLadderModal, setShowLadderModal] = useState(false)
+  const [showWinnerModal, setShowWinnerModal] = useState(false)
 
   // Subscribe to room updates
   useEffect(() => {
@@ -146,7 +144,6 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
 
     setLastDiceRoll(value)
     setShowDiceResult(true)
-    setIsRolling(false)
 
     const currentPlayer = players.find((p) => p.id === myPlayer.id)
     if (!currentPlayer) return
@@ -161,6 +158,13 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
 
     // Animate movement
     await animateMovement(myPlayer.id, previousPos, result.position)
+
+    // Show event modal for snake/ladder
+    if (result.moveType === 'snake') {
+      setShowSnakeModal(true)
+    } else if (result.moveType === 'ladder') {
+      setShowLadderModal(true)
+    }
 
     // Update position in database
     await multiplayerService.updatePlayerPosition(myPlayer.id, result.position)
@@ -186,11 +190,13 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
     if (checkWin(result.position)) {
       await multiplayerService.endGame(room.id, myPlayer.playerName)
       setWinner(myPlayer.playerName)
+      setShowWinnerModal(true)
       setGameStatus('finished')
       return
     }
 
-    // Next turn
+    // Next turn (with delay for modal)
+    const modalDelay = result.moveType !== 'normal' ? 2500 : 1500
     setTimeout(async () => {
       setShowDiceResult(false)
       const nextIndex = (currentTurnIndex + 1) % players.length
@@ -211,7 +217,6 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
 
   const animateMovement = async (playerId: string, from: number, to: number) => {
     setIsAnimating(true)
-    setAnimatingPlayerId(playerId)
 
     const steps = []
     if (to > from) {
@@ -221,7 +226,6 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
     }
 
     for (const step of steps) {
-      setAnimationPosition(step)
       setPlayers((prev) =>
         prev.map((p) => (p.id === playerId ? { ...p, position: step } : p))
       )
@@ -229,7 +233,6 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
     }
 
     setIsAnimating(false)
-    setAnimatingPlayerId(null)
   }
 
   const handleShareRoom = async () => {
@@ -293,7 +296,7 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
           </Text>
 
           <View style={styles.playerList}>
-            {players.map((p, index) => (
+            {players.map((p) => (
               <View key={p.id} style={styles.playerItem}>
                 <View style={[styles.playerColor, { backgroundColor: p.playerColor }]} />
                 <Text style={styles.playerName}>
@@ -398,6 +401,27 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
           </View>
         </View>
       </Modal>
+
+      {/* Snake Event Modal */}
+      <GameEventModal
+        visible={showSnakeModal}
+        type="snake"
+        onClose={() => setShowSnakeModal(false)}
+      />
+
+      {/* Ladder Event Modal */}
+      <GameEventModal
+        visible={showLadderModal}
+        type="ladder"
+        onClose={() => setShowLadderModal(false)}
+      />
+
+      {/* Winner Event Modal */}
+      <GameEventModal
+        visible={showWinnerModal}
+        type="winner"
+        playerName={winner || ''}
+      />
     </View>
   )
 }

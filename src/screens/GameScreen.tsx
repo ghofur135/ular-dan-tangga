@@ -13,6 +13,7 @@ import { useGameStore } from '../store/gameStore'
 import GameBoard from '../components/GameBoard'
 import DiceRoller from '../components/DiceRoller'
 import TurnIndicator from '../components/TurnIndicator'
+import GameEventModal from '../components/GameEventModal'
 import { checkWin } from '../utils/boardLogic'
 import { playGameStartSound } from '../utils/soundUtils'
 
@@ -86,6 +87,10 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   const [showBotDiceModal, setShowBotDiceModal] = useState(false)
   const [botDiceResult, setBotDiceResult] = useState<number>(1)
   const [botName, setBotName] = useState<string>('')
+  const [showSnakeModal, setShowSnakeModal] = useState(false)
+  const [showLadderModal, setShowLadderModal] = useState(false)
+  const [showWinnerModal, setShowWinnerModal] = useState(false)
+  const [winnerName, setWinnerName] = useState<string>('')
   
   const {
     players,
@@ -138,7 +143,8 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   // Show win modal when game ends
   useEffect(() => {
     if (gameStatus === 'finished' && winner) {
-      setShowWinModal(true)
+      setWinnerName(winner.name)
+      setShowWinnerModal(true)
     }
   }, [gameStatus, winner])
 
@@ -199,11 +205,11 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         moveResult.position,
         result,
         () => {
-          // Show feedback for special moves after animation
+          // Show modal for special moves after animation
           if (moveResult.moveType === 'snake') {
-            Alert.alert('🐍 Snake!', 'You landed on a snake and slid down!')
+            setShowSnakeModal(true)
           } else if (moveResult.moveType === 'ladder') {
-            Alert.alert('🪜 Ladder!', 'You climbed up a ladder!')
+            setShowLadderModal(true)
           }
 
           // Check for win
@@ -211,10 +217,11 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             return
           }
 
-          // End turn after animation
+          // End turn after animation (with delay for modal)
+          const delay = moveResult.moveType !== 'normal' ? 2000 : 500
           setTimeout(() => {
             endPlayerTurn()
-          }, 500)
+          }, delay)
         }
       )
     }
@@ -305,6 +312,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
 
   const handlePlayAgain = () => {
     setShowWinModal(false)
+    setShowWinnerModal(false)
     // Reset positions but keep players
     useGameStore.setState((state) => ({
       players: state.players.map((p, i) => ({
@@ -322,6 +330,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
 
   const handleExitGame = () => {
     setShowWinModal(false)
+    setShowWinnerModal(false)
     resetGame()
     navigation.navigate('Home')
   }
@@ -493,6 +502,27 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           </View>
         </View>
       </Modal>
+
+      {/* Snake Event Modal */}
+      <GameEventModal
+        visible={showSnakeModal}
+        type="snake"
+        onClose={() => setShowSnakeModal(false)}
+      />
+
+      {/* Ladder Event Modal */}
+      <GameEventModal
+        visible={showLadderModal}
+        type="ladder"
+        onClose={() => setShowLadderModal(false)}
+      />
+
+      {/* Winner Event Modal */}
+      <GameEventModal
+        visible={showWinnerModal}
+        type="winner"
+        playerName={winnerName}
+      />
     </View>
   )
 }
