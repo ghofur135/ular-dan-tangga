@@ -15,6 +15,7 @@ import DiceRoller from '../components/DiceRoller'
 import { multiplayerService, OnlineRoom, OnlinePlayer, GameUpdate } from '../services/multiplayerService'
 import { calculateNewPosition, checkWin } from '../utils/boardLogic'
 import { STANDARD_BOARD, Player } from '../types/game'
+import { playGameStartSound } from '../utils/soundUtils'
 
 interface OnlineGameScreenProps {
   navigation: any
@@ -92,6 +93,7 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
 
       case 'game_started':
         setGameStatus('playing')
+        playGameStartSound()
         loadPlayers()
         break
 
@@ -134,6 +136,7 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
 
     const success = await multiplayerService.startGame(room.id)
     if (success) {
+      playGameStartSound()
       setGameStatus('playing')
     }
   }

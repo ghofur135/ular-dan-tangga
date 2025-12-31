@@ -14,6 +14,7 @@ import GameBoard from '../components/GameBoard'
 import DiceRoller from '../components/DiceRoller'
 import TurnIndicator from '../components/TurnIndicator'
 import { checkWin } from '../utils/boardLogic'
+import { playGameStartSound } from '../utils/soundUtils'
 
 // Dot patterns for dice face
 const DOT_PATTERNS: { [key: number]: { top: number; left: number }[] } = {
@@ -298,6 +299,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
       Alert.alert('Need More Players', 'At least 2 players are required to start')
       return
     }
+    playGameStartSound()
     startGame()
   }
 
