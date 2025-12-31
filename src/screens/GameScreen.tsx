@@ -3,19 +3,20 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Pressable,
   Alert,
   Modal,
-  Animated,
+  SafeAreaView,
+  Dimensions,
 } from 'react-native'
 import { useGameStore } from '../store/gameStore'
 import GameBoard from '../components/GameBoard'
 import DiceRoller from '../components/DiceRoller'
-import TurnIndicator from '../components/TurnIndicator'
 import GameEventModal from '../components/GameEventModal'
 import { checkWin } from '../utils/boardLogic'
 import { playGameStartSound } from '../utils/soundUtils'
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 
 // Dot patterns for dice face
 const DOT_PATTERNS: { [key: number]: { top: number; left: number }[] } = {
@@ -27,8 +28,8 @@ const DOT_PATTERNS: { [key: number]: { top: number; left: number }[] } = {
   6: [{ top: 25, left: 25 }, { top: 25, left: 75 }, { top: 50, left: 25 }, { top: 50, left: 75 }, { top: 75, left: 25 }, { top: 75, left: 75 }],
 }
 
-const LARGE_DICE_SIZE = 120
-const LARGE_DOT_SIZE = 20
+const LARGE_DICE_SIZE = 100
+const LARGE_DOT_SIZE = 16
 
 // DiceFace component for bot dice display
 const DiceFace = ({ value }: { value: number }) => (
@@ -55,15 +56,11 @@ const diceStyles = StyleSheet.create({
     width: LARGE_DICE_SIZE,
     height: LARGE_DICE_SIZE,
     backgroundColor: '#FAFAFA',
-    borderRadius: 16,
-    borderWidth: 3,
+    borderRadius: 12,
+    borderWidth: 2,
     borderColor: '#E8E8E8',
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 12,
+    elevation: 8,
   },
   dot: {
     position: 'absolute',
@@ -78,9 +75,6 @@ interface GameScreenProps {
   navigation: any
 }
 
-/**
- * GameScreen - Main game screen with board, dice, and turn management
- */
 export default function GameScreen({ navigation }: GameScreenProps) {
   const [showWinModal, setShowWinModal] = useState(false)
   const [showPauseModal, setShowPauseModal] = useState(false)
@@ -121,27 +115,17 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   // Add bot player for single player mode
   useEffect(() => {
     if (players.length === 1 && gameStatus === 'waiting') {
-      // Auto-add a bot player for testing
       const botColors = ['#45B7D1', '#96CEB4', '#DDA0DD']
       const botNames = ['Bot Alice', 'Bot Bob', 'Bot Charlie']
-      
       useGameStore.setState((state) => ({
         players: [
           ...state.players,
-          {
-            id: `bot-${Date.now()}`,
-            name: botNames[0],
-            color: botColors[0],
-            position: 1,
-            isCurrentTurn: false,
-            joinedAt: new Date(),
-          },
+          { id: `bot-${Date.now()}`, name: botNames[0], color: botColors[0], position: 1, isCurrentTurn: false, joinedAt: new Date() },
         ],
       }))
     }
   }, [players.length, gameStatus])
 
-  // Show win modal when game ends
   useEffect(() => {
     if (gameStatus === 'finished' && winner) {
       setWinnerName(winner.name)
@@ -149,100 +133,51 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     }
   }, [gameStatus, winner])
 
-  // Animate movement step by step
-  const animateMovement = async (
-    playerId: string,
-    startPos: number,
-    endPos: number,
-    diceRoll: number,
-    onComplete: () => void
-  ) => {
+  const animateMovement = async (playerId: string, startPos: number, endPos: number, diceRoll: number, onComplete: () => void) => {
     setAnimating(true, playerId)
-    
-    // Calculate intermediate positions (step by step)
     const steps: number[] = []
     let currentPos = startPos
-    
-    // Add each step position
     for (let i = 0; i < diceRoll; i++) {
       currentPos++
-      if (currentPos <= 100) {
-        steps.push(currentPos)
-      }
+      if (currentPos <= 100) steps.push(currentPos)
     }
-    
-    // Animate through each step
     for (let i = 0; i < steps.length; i++) {
       setAnimationPosition(steps[i])
-      await new Promise(resolve => setTimeout(resolve, 250)) // 250ms per step
+      await new Promise(resolve => setTimeout(resolve, 200))
     }
-    
-    // If landed on snake or ladder, animate that too
     if (endPos !== steps[steps.length - 1]) {
-      await new Promise(resolve => setTimeout(resolve, 300))
+      await new Promise(resolve => setTimeout(resolve, 250))
       setAnimationPosition(endPos)
-      await new Promise(resolve => setTimeout(resolve, 400))
+      await new Promise(resolve => setTimeout(resolve, 300))
     }
-    
     setAnimating(false, null)
     onComplete()
   }
 
   const handleDiceRoll = (result: number) => {
     if (!currentPlayerId) return
-
-    // Get current position before move
     const player = players.find(p => p.id === currentPlayerId)
     if (!player) return
-    
     const startPosition = player.position
     const moveResult = processMove(currentPlayerId, result)
-    
     if (moveResult) {
-      // Animate the movement
-      animateMovement(
-        currentPlayerId,
-        startPosition,
-        moveResult.position,
-        result,
-        () => {
-          // Show modal for special moves after animation
-          if (moveResult.moveType === 'snake') {
-            setShowSnakeModal(true)
-          } else if (moveResult.moveType === 'ladder') {
-            setShowLadderModal(true)
-          } else if (moveResult.moveType === 'bounce') {
-            setShowBounceModal(true)
-          }
-
-          // Check for win
-          if (checkWin(moveResult.position)) {
-            return
-          }
-
-          // End turn after animation (with delay for modal)
-          const delay = moveResult.moveType !== 'normal' ? 2000 : 500
-          setTimeout(() => {
-            endPlayerTurn()
-          }, delay)
-        }
-      )
+      animateMovement(currentPlayerId, startPosition, moveResult.position, result, () => {
+        if (moveResult.moveType === 'snake') setShowSnakeModal(true)
+        else if (moveResult.moveType === 'ladder') setShowLadderModal(true)
+        else if (moveResult.moveType === 'bounce') setShowBounceModal(true)
+        if (checkWin(moveResult.position)) return
+        const delay = moveResult.moveType !== 'normal' ? 2000 : 500
+        setTimeout(() => endPlayerTurn(), delay)
+      })
     }
   }
 
-  // Effect to handle bot turns when it becomes bot's turn
   useEffect(() => {
     if (gameStatus !== 'playing' || isPaused || isAnimating) return
-    
     const currentPlayer = players[currentPlayerIndex]
     if (!currentPlayer) return
-    
-    // If current player is a bot, auto-roll
     if (currentPlayer.id.startsWith('bot-')) {
-      const botTimer = setTimeout(() => {
-        handleBotTurn(currentPlayer.id)
-      }, 1500)
-      
+      const botTimer = setTimeout(() => handleBotTurn(currentPlayer.id), 1500)
       return () => clearTimeout(botTimer)
     }
   }, [currentPlayerIndex, gameStatus, players, isPaused, isAnimating])
@@ -250,435 +185,324 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   const handleBotTurn = (botId: string) => {
     const state = useGameStore.getState()
     if (state.gameStatus !== 'playing' || state.isPaused || state.isAnimating) return
-    
-    // Verify it's still this bot's turn
     const botPlayer = state.players[state.currentPlayerIndex]
     if (!botPlayer || botPlayer.id !== botId) return
-    
     const startPosition = botPlayer.position
     const botResult = Math.floor(Math.random() * 6) + 1
-    
-    // Show bot dice result modal
     setBotDiceResult(botResult)
     setBotName(botPlayer.name)
     setShowBotDiceModal(true)
-    
-    // Process move after showing dice
     setTimeout(() => {
       setShowBotDiceModal(false)
-      
       const moveResult = processMove(botId, botResult)
-      
       if (moveResult) {
-        // Animate bot movement
-        animateMovement(
-          botId,
-          startPosition,
-          moveResult.position,
-          botResult,
-          () => {
-            if (!checkWin(moveResult.position)) {
-              setTimeout(() => {
-                endPlayerTurn()
-              }, 500)
-            }
-          }
-        )
+        animateMovement(botId, startPosition, moveResult.position, botResult, () => {
+          if (!checkWin(moveResult.position)) setTimeout(() => endPlayerTurn(), 500)
+        })
       }
-    }, 1500) // Show dice for 1.5 seconds
+    }, 1500)
   }
 
-  const handlePauseGame = () => {
-    pauseGame()
-    setShowPauseModal(true)
-  }
-
-  const handleResumeGame = () => {
-    setShowPauseModal(false)
-    resumeGame()
-  }
-
-  const handleQuitGame = () => {
-    setShowPauseModal(false)
-    resetGame()
-    navigation.navigate('Home')
-  }
-
+  const handlePauseGame = () => { pauseGame(); setShowPauseModal(true) }
+  const handleResumeGame = () => { setShowPauseModal(false); resumeGame() }
+  const handleQuitGame = () => { setShowPauseModal(false); resetGame(); navigation.navigate('Home') }
   const handleStartGame = () => {
-    if (players.length < 2) {
-      Alert.alert('Butuh Lebih Banyak Pemain', 'Minimal 2 pemain untuk memulai')
-      return
-    }
+    if (players.length < 2) { Alert.alert('Butuh Lebih Banyak Pemain', 'Minimal 2 pemain untuk memulai'); return }
     playGameStartSound()
     startGame()
   }
-
   const handlePlayAgain = () => {
     setShowWinModal(false)
     setShowWinnerModal(false)
-    // Reset positions but keep players
     useGameStore.setState((state) => ({
-      players: state.players.map((p, i) => ({
-        ...p,
-        position: 1,
-        isCurrentTurn: i === 0,
-        diceResult: undefined,
-      })),
-      currentPlayerIndex: 0,
-      gameStatus: 'playing',
-      winner: null,
-      moveHistory: [],
+      players: state.players.map((p, i) => ({ ...p, position: 1, isCurrentTurn: i === 0, diceResult: undefined })),
+      currentPlayerIndex: 0, gameStatus: 'playing', winner: null, moveHistory: [],
     }))
   }
-
-  const handleExitGame = () => {
-    setShowWinModal(false)
-    setShowWinnerModal(false)
-    resetGame()
-    navigation.navigate('Home')
-  }
+  const handleExitGame = () => { setShowWinModal(false); setShowWinnerModal(false); resetGame(); navigation.navigate('Home') }
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header with Pause Button */}
+    <SafeAreaView style={styles.container}>
+      {/* Compact Header */}
+      <View style={styles.header}>
+        <View style={styles.turnInfo}>
+          <Text style={styles.turnLabel}>GILIRAN</Text>
+          <Text style={styles.turnName} numberOfLines={1}>{currentPlayer?.name || 'Menunggu...'}</Text>
+        </View>
         {gameStatus === 'playing' && (
-          <View style={styles.headerRow}>
+          <Pressable style={styles.pauseBtn} onPress={handlePauseGame}>
+            <Text style={styles.pauseBtnText}>⏸️</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Players Row */}
+      <View style={styles.playersRow}>
+        {players.map((p) => (
+          <View key={p.id} style={[styles.playerBadge, p.isCurrentTurn && styles.playerBadgeActive]}>
+            <View style={[styles.playerDot, { backgroundColor: p.color }]} />
+            <Text style={styles.playerBadgeName} numberOfLines={1}>{p.name.substring(0, 8)}</Text>
+            <Text style={styles.playerBadgePos}>📍{p.position}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Game Board - Flex to fill available space */}
+      <View style={styles.boardContainer}>
+        <GameBoard players={players} />
+      </View>
+
+      {/* Bottom Section - Dice & History */}
+      <View style={styles.bottomSection}>
+        {gameStatus === 'waiting' ? (
+          <View style={styles.waitingContainer}>
+            <Text style={styles.waitingText}>Pemain: {players.length}/4</Text>
             <Pressable
-              style={({ pressed }) => [
-                styles.pauseButton,
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={handlePauseGame}
+              style={[styles.startButton, players.length < 2 && styles.buttonDisabled]}
+              onPress={handleStartGame}
+              disabled={players.length < 2}
             >
-              <Text style={styles.pauseButtonText}>⏸️ Jeda</Text>
+              <Text style={styles.startButtonText}>🎮 Mulai Game</Text>
             </Pressable>
           </View>
-        )}
-
-        {/* Turn Indicator */}
-        <TurnIndicator
-          currentPlayer={currentPlayer}
-          allPlayers={players}
-          gameStatus={gameStatus}
-        />
-
-        {/* Game Board */}
-        <View style={styles.boardContainer}>
-          <GameBoard players={players} />
-        </View>
-
-        {/* Game Controls */}
-        <View style={styles.controlsContainer}>
-          {gameStatus === 'waiting' && (
-            <View style={styles.waitingContainer}>
-              <Text style={styles.waitingText}>
-                Pemain: {players.length}/4
-              </Text>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.startButton,
-                  pressed && styles.buttonPressed,
-                  players.length < 2 && styles.buttonDisabled,
-                ]}
-                onPress={handleStartGame}
-                disabled={players.length < 2}
-              >
-                <Text style={styles.startButtonText}>Mulai Game</Text>
-              </Pressable>
-            </View>
-          )}
-
-          {gameStatus === 'playing' && (
+        ) : (
+          <>
             <DiceRoller onRoll={handleDiceRoll} isDisabled={!canRoll} />
-          )}
-        </View>
-
-        {/* Move History Preview */}
-        {gameStatus === 'playing' && (
-          <View style={styles.historyPreview}>
-            <Text style={styles.historyTitle}>📜 Langkah Terakhir</Text>
-            {lastMove ? (
-              <View style={styles.historyContent}>
-                <Text style={styles.historyPlayerName}>{lastMove.playerName}</Text>
+            {lastMove && (
+              <View style={styles.historyRow}>
                 <Text style={styles.historyText}>
-                  melempar 🎲 {lastMove.diceRoll} → bergerak dari {lastMove.previousPosition} ke {lastMove.newPosition}
+                  📜 <Text style={styles.historyName}>{lastMove.playerName}</Text> 🎲{lastMove.diceRoll} → {lastMove.previousPosition}→{lastMove.newPosition}
                   {lastMove.moveType === 'snake' && ' 🐍'}
                   {lastMove.moveType === 'ladder' && ' 🪜'}
                   {lastMove.moveType === 'bounce' && ' ↩️'}
                 </Text>
               </View>
-            ) : (
-              <Text style={styles.historyText}>Belum ada langkah</Text>
             )}
-          </View>
+          </>
         )}
-      </ScrollView>
+      </View>
 
-      {/* Win Modal */}
-      <Modal
-        visible={showWinModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowWinModal(false)}
-      >
+      {/* Modals */}
+      <Modal visible={showWinModal} transparent animationType="fade" onRequestClose={() => setShowWinModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalEmoji}>🎉</Text>
             <Text style={styles.modalTitle}>Pemenang!</Text>
             <Text style={styles.modalWinner}>{winner?.name}</Text>
-            <Text style={styles.modalSubtitle}>mencapai posisi 100!</Text>
-            
             <View style={styles.modalButtons}>
-              <Pressable
-                style={[styles.modalButton, styles.playAgainButton]}
-                onPress={handlePlayAgain}
-              >
+              <Pressable style={[styles.modalButton, styles.playAgainButton]} onPress={handlePlayAgain}>
                 <Text style={styles.modalButtonText}>Main Lagi</Text>
               </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.exitButton]}
-                onPress={handleExitGame}
-              >
-                <Text style={[styles.modalButtonText, styles.exitButtonText]}>
-                  Keluar
-                </Text>
+              <Pressable style={[styles.modalButton, styles.exitButton]} onPress={handleExitGame}>
+                <Text style={[styles.modalButtonText, styles.exitButtonText]}>Keluar</Text>
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Pause Modal */}
-      <Modal
-        visible={showPauseModal}
-        transparent
-        animationType="fade"
-        onRequestClose={handleResumeGame}
-      >
+      <Modal visible={showPauseModal} transparent animationType="fade" onRequestClose={handleResumeGame}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalEmoji}>⏸️</Text>
             <Text style={styles.modalTitle}>Game Dijeda</Text>
-            <Text style={styles.pauseSubtitle}>Istirahat dulu!</Text>
-            
             <View style={styles.modalButtons}>
-              <Pressable
-                style={[styles.modalButton, styles.resumeButton]}
-                onPress={handleResumeGame}
-              >
+              <Pressable style={[styles.modalButton, styles.resumeButton]} onPress={handleResumeGame}>
                 <Text style={styles.modalButtonText}>▶️ Lanjutkan</Text>
               </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.restartButton]}
-                onPress={handlePlayAgain}
-              >
-                <Text style={styles.modalButtonText}>🔄 Mulai Ulang</Text>
+              <Pressable style={[styles.modalButton, styles.restartButton]} onPress={handlePlayAgain}>
+                <Text style={styles.modalButtonText}>🔄 Ulang</Text>
               </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.quitButton]}
-                onPress={handleQuitGame}
-              >
-                <Text style={[styles.modalButtonText, styles.quitButtonText]}>
-                  🚪 Keluar Game
-                </Text>
+              <Pressable style={[styles.modalButton, styles.quitButton]} onPress={handleQuitGame}>
+                <Text style={[styles.modalButtonText, styles.quitButtonText]}>🚪 Keluar</Text>
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Bot Dice Result Modal */}
-      <Modal
-        visible={showBotDiceModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {}}
-      >
+      <Modal visible={showBotDiceModal} transparent animationType="fade" onRequestClose={() => {}}>
         <View style={styles.modalOverlay}>
           <View style={styles.botDiceModalContent}>
             <Text style={styles.botDiceTitle}>🤖 {botName}</Text>
-            <Text style={styles.botDiceSubtitle}>melempar dadu!</Text>
-            <View style={styles.botDiceContainer}>
-              <DiceFace value={botDiceResult} />
-            </View>
+            <DiceFace value={botDiceResult} />
             <Text style={styles.botDiceNumber}>{botDiceResult}</Text>
           </View>
         </View>
       </Modal>
 
-      {/* Snake Event Modal */}
-      <GameEventModal
-        visible={showSnakeModal}
-        type="snake"
-        onClose={() => setShowSnakeModal(false)}
-      />
-
-      {/* Ladder Event Modal */}
-      <GameEventModal
-        visible={showLadderModal}
-        type="ladder"
-        onClose={() => setShowLadderModal(false)}
-      />
-
-      {/* Bounce Event Modal */}
-      <GameEventModal
-        visible={showBounceModal}
-        type="bounce"
-        onClose={() => setShowBounceModal(false)}
-      />
-
-      {/* Winner Event Modal */}
-      <GameEventModal
-        visible={showWinnerModal}
-        type="winner"
-        playerName={winnerName}
-      />
-    </View>
+      <GameEventModal visible={showSnakeModal} type="snake" onClose={() => setShowSnakeModal(false)} />
+      <GameEventModal visible={showLadderModal} type="ladder" onClose={() => setShowLadderModal(false)} />
+      <GameEventModal visible={showBounceModal} type="bounce" onClose={() => setShowBounceModal(false)} />
+      <GameEventModal visible={showWinnerModal} type="winner" playerName={winnerName} />
+    </SafeAreaView>
   )
 }
+
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f0f4f8',
   },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  headerRow: {
+  header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#4CAF50',
   },
-  pauseButton: {
-    backgroundColor: '#FF9800',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+  turnInfo: {
+    flex: 1,
   },
-  pauseButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
+  turnLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+  },
+  turnName: {
+    fontSize: 16,
+    color: '#fff',
     fontWeight: 'bold',
   },
-  boardContainer: {
+  pauseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FF9800',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 16,
   },
-  controlsContainer: {
+  pauseBtnText: {
+    fontSize: 18,
+  },
+  playersRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    gap: 6,
+    backgroundColor: '#e8f5e9',
+  },
+  playerBadge: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
+    backgroundColor: '#fff',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  playerBadgeActive: {
+    borderColor: '#4CAF50',
+    backgroundColor: '#e8f5e9',
+  },
+  playerDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 4,
+  },
+  playerBadgeName: {
+    flex: 1,
+    fontSize: 11,
+    color: '#333',
+  },
+  playerBadgePos: {
+    fontSize: 10,
+    color: '#666',
+  },
+  boardContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  bottomSection: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    paddingTop: 4,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    alignItems: 'center',
   },
   waitingContainer: {
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    width: '100%',
+    paddingVertical: 12,
   },
   waitingText: {
-    fontSize: 18,
+    fontSize: 14,
     color: '#666',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   startButton: {
     backgroundColor: '#4CAF50',
-    paddingHorizontal: 40,
-    paddingVertical: 16,
-    borderRadius: 25,
-  },
-  buttonPressed: {
-    opacity: 0.8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
   },
   buttonDisabled: {
-    backgroundColor: '#cccccc',
+    backgroundColor: '#ccc',
   },
   startButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  historyPreview: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  historyTitle: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  historyContent: {
-    alignItems: 'center',
-  },
-  historyPlayerName: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#4CAF50',
-    marginBottom: 4,
+  },
+  historyRow: {
+    marginTop: 4,
+    paddingHorizontal: 8,
   },
   historyText: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: 11,
+    color: '#666',
     textAlign: 'center',
+  },
+  historyName: {
+    fontWeight: 'bold',
+    color: '#4CAF50',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 32,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center',
-    width: '85%',
-    maxWidth: 320,
+    width: '80%',
+    maxWidth: 300,
   },
   modalEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
+    fontSize: 48,
+    marginBottom: 12,
   },
   modalTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 8,
   },
   modalWinner: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#4CAF50',
-    marginBottom: 4,
-  },
-  modalSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   modalButtons: {
     width: '100%',
-    gap: 12,
+    gap: 8,
   },
   modalButton: {
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: 'center',
   },
   playAgainButton: {
@@ -688,17 +512,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   modalButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#fff',
   },
   exitButtonText: {
     color: '#666',
-  },
-  pauseSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
   },
   resumeButton: {
     backgroundColor: '#4CAF50',
@@ -713,33 +532,21 @@ const styles = StyleSheet.create({
     color: '#E53935',
   },
   botDiceModalContent: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 32,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 20,
   },
   botDiceTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#45B7D1',
-    marginBottom: 4,
-  },
-  botDiceSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
-  },
-  botDiceContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   botDiceNumber: {
-    fontSize: 48,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#4CAF50',
+    marginTop: 12,
   },
 })
