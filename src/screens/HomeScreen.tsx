@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native'
+import { Audio } from 'expo-av'
 import { useGameStore } from '../store/gameStore'
 import { PLAYER_COLORS } from '../types/game'
 
@@ -22,8 +23,33 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [playerName, setPlayerName] = useState('')
   const [roomName, setRoomName] = useState('')
   const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0])
+  const soundRef = useRef<Audio.Sound | null>(null)
 
   const { createGameRoom, players } = useGameStore()
+
+  // Play welcome intro music on mount
+  useEffect(() => {
+    const playWelcomeMusic = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require('../../assets/sound/welcome-intro.mp3'),
+          { shouldPlay: true, volume: 0.7 }
+        )
+        soundRef.current = sound
+      } catch (error) {
+        console.log('Error playing welcome music:', error)
+      }
+    }
+
+    playWelcomeMusic()
+
+    // Cleanup on unmount
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync()
+      }
+    }
+  }, [])
 
   const handleCreateGame = () => {
     if (!playerName.trim()) {
