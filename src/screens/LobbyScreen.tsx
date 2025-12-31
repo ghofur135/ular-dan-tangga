@@ -35,6 +35,9 @@ export default function LobbyScreen({ navigation }: LobbyScreenProps) {
 
   const loadRooms = async () => {
     setLoading(true)
+    // Cleanup finished and empty rooms first
+    await multiplayerService.cleanupFinishedRooms()
+    // Then load available rooms
     const availableRooms = await multiplayerService.getAvailableRooms()
     setRooms(availableRooms)
     setLoading(false)

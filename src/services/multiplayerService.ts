@@ -393,6 +393,11 @@ class MultiplayerService {
 
       if (!error) {
         await this.broadcastUpdate({ type: 'game_ended', data: { winnerName } })
+        
+        // Auto-delete room after 5 seconds
+        setTimeout(() => {
+          this.deleteRoom(roomId)
+        }, 5000)
       }
 
       return !error
@@ -409,21 +414,93 @@ class MultiplayerService {
     try {
       await supabase.from('game_players').delete().eq('id', playerId)
 
-      // Update player count
-      const { data: room } = await supabase
-        .from('game_rooms')
-        .select('current_players')
-        .eq('id', roomId)
-        .single()
+      // Check remaining players
+      const { data: remainingPlayers, error: countError } = await supabase
+        .from('game_players')
+        .select('id')
+        .eq('room_id', roomId)
 
-      if (room) {
+      const playerCount = remainingPlayers?.length || 0
+
+      if (playerCount === 0) {
+        // No players left, delete the room
+        await this.deleteRoom(roomId)
+      } else {
+        // Update player count
         await supabase
           .from('game_rooms')
-          .update({ current_players: Math.max(0, room.current_players - 1) })
+          .update({ current_players: playerCount })
           .eq('id', roomId)
       }
     } catch (error) {
       console.error('Error leaving room:', error)
+    }
+  }
+
+  /**
+   * Delete a room and all related data
+   */
+  async deleteRoom(roomId: string): Promise<boolean> {
+    try {
+      // Delete move history first (foreign key constraint)
+      await supabase.from('move_history').delete().eq('room_id', roomId)
+      
+      // Delete all players in room
+      await supabase.from('game_players').delete().eq('room_id', roomId)
+      
+      // Delete the room
+      const { error } = await supabase.from('game_rooms').delete().eq('id', roomId)
+      
+      if (error) {
+        console.error('Error deleting room:', error)
+        return false
+      }
+      
+      console.log('Room deleted:', roomId)
+      return true
+    } catch (error) {
+      console.error('Error in deleteRoom:', error)
+      return false
+    }
+  }
+
+  /**
+   * Cleanup finished rooms (call periodically or on lobby load)
+   */
+  async cleanupFinishedRooms(): Promise<number> {
+    try {
+      // Get all finished rooms
+      const { data: finishedRooms, error: fetchError } = await supabase
+        .from('game_rooms')
+        .select('id')
+        .eq('status', 'finished')
+
+      if (fetchError || !finishedRooms) return 0
+
+      let deletedCount = 0
+      for (const room of finishedRooms) {
+        const success = await this.deleteRoom(room.id)
+        if (success) deletedCount++
+      }
+
+      // Also cleanup rooms with 0 players
+      const { data: emptyRooms, error: emptyError } = await supabase
+        .from('game_rooms')
+        .select('id')
+        .eq('current_players', 0)
+
+      if (!emptyError && emptyRooms) {
+        for (const room of emptyRooms) {
+          const success = await this.deleteRoom(room.id)
+          if (success) deletedCount++
+        }
+      }
+
+      console.log(`Cleaned up ${deletedCount} rooms`)
+      return deletedCount
+    } catch (error) {
+      console.error('Error in cleanupFinishedRooms:', error)
+      return 0
     }
   }
 
