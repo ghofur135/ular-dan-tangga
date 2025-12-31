@@ -116,7 +116,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Quick Play</Text>
         <Text style={styles.cardDescription}>
-          Start a game instantly with a random room
+          Main cepat melawan Bot
         </Text>
         
         <Pressable
@@ -128,7 +128,28 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           onPress={handleQuickPlay}
         >
           <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-            ⚡ Quick Start
+            🤖 Main vs Bot
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Multiplayer Online */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>🌐 Multiplayer Online</Text>
+        <Text style={styles.cardDescription}>
+          Main bareng teman secara online!
+        </Text>
+        
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            styles.onlineButton,
+            pressed && styles.buttonPressed,
+          ]}
+          onPress={() => navigation.navigate('Lobby')}
+        >
+          <Text style={styles.buttonText}>
+            🎮 Masuk Lobby
           </Text>
         </Pressable>
       </View>
@@ -259,6 +280,9 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: '#4CAF50',
+  },
+  onlineButton: {
+    backgroundColor: '#2196F3',
   },
   rulesList: {
     gap: 8,

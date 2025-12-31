@@ -1,0 +1,558 @@
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Alert,
+  Modal,
+  ScrollView,
+  Share,
+} from 'react-native'
+import GameBoard from '../components/GameBoard'
+import DiceRoller from '../components/DiceRoller'
+import TurnIndicator from '../components/TurnIndicator'
+import { multiplayerService, OnlineRoom, OnlinePlayer, GameUpdate } from '../services/multiplayerService'
+import { calculateNewPosition, checkWin } from '../utils/boardLogic'
+import { STANDARD_BOARD, Player } from '../types/game'
+
+interface OnlineGameScreenProps {
+  navigation: any
+  route: {
+    params: {
+      room: OnlineRoom
+      player: OnlinePlayer
+      players?: OnlinePlayer[]
+      isHost: boolean
+    }
+  }
+}
+
+export default function OnlineGameScreen({ navigation, route }: OnlineGameScreenProps) {
+  const { room: initialRoom, player: myPlayer, isHost } = route.params
+
+  const [room, setRoom] = useState<OnlineRoom>(initialRoom)
+  const [players, setPlayers] = useState<OnlinePlayer[]>(route.params.players || [myPlayer])
+  const [gameStatus, setGameStatus] = useState<'waiting' | 'playing' | 'finished'>(initialRoom.status)
+  const [currentTurnIndex, setCurrentTurnIndex] = useState(0)
+  const [lastDiceRoll, setLastDiceRoll] = useState<number | null>(null)
+  const [isRolling, setIsRolling] = useState(false)
+  const [winner, setWinner] = useState<string | null>(null)
+  const [showDiceResult, setShowDiceResult] = useState(false)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [animatingPlayerId, setAnimatingPlayerId] = useState<string | null>(null)
+  const [animationPosition, setAnimationPosition] = useState(1)
+
+  // Subscribe to room updates
+  useEffect(() => {
+    multiplayerService.subscribeToRoom(room.id, handleGameUpdate)
+
+    // Load initial players if host
+    if (isHost) {
+      loadPlayers()
+    }
+
+    return () => {
+      multiplayerService.unsubscribe()
+    }
+  }, [room.id])
+
+  const loadPlayers = async () => {
+    const roomPlayers = await multiplayerService.getPlayersInRoom(room.id)
+    if (roomPlayers.length > 0) {
+      setPlayers(roomPlayers)
+    }
+  }
+
+  const handleGameUpdate = useCallback((update: GameUpdate) => {
+    console.log('Game update received:', update)
+
+    switch (update.type) {
+      case 'player_joined':
+        const newPlayer: OnlinePlayer = {
+          id: update.data.id,
+          roomId: update.data.room_id,
+          playerName: update.data.player_name,
+          playerColor: update.data.player_color,
+          position: update.data.position || 1,
+          isHost: update.data.is_host,
+          isCurrentTurn: update.data.is_current_turn,
+          playerOrder: update.data.player_order,
+        }
+        setPlayers((prev) => {
+          if (prev.find((p) => p.id === newPlayer.id)) return prev
+          return [...prev, newPlayer]
+        })
+        break
+
+      case 'player_left':
+        setPlayers((prev) => prev.filter((p) => p.id !== update.data.id))
+        break
+
+      case 'game_started':
+        setGameStatus('playing')
+        loadPlayers()
+        break
+
+      case 'player_moved':
+        setPlayers((prev) =>
+          prev.map((p) =>
+            p.id === update.data.id
+              ? { ...p, position: update.data.position }
+              : p
+          )
+        )
+        break
+
+      case 'turn_changed':
+        setCurrentTurnIndex(update.data.nextTurnIndex)
+        setPlayers((prev) =>
+          prev.map((p, i) => ({ ...p, isCurrentTurn: i === update.data.nextTurnIndex }))
+        )
+        break
+
+      case 'game_ended':
+        setGameStatus('finished')
+        setWinner(update.data.winnerName)
+        break
+    }
+  }, [])
+
+  const isMyTurn = () => {
+    if (gameStatus !== 'playing') return false
+    const currentPlayer = players[currentTurnIndex]
+    return currentPlayer?.id === myPlayer.id
+  }
+
+  const handleStartGame = async () => {
+    if (!isHost) return
+    if (players.length < 2) {
+      Alert.alert('Tunggu', 'Minimal 2 pemain untuk mulai')
+      return
+    }
+
+    const success = await multiplayerService.startGame(room.id)
+    if (success) {
+      setGameStatus('playing')
+    }
+  }
+
+  const handleDiceRoll = async (value: number) => {
+    if (!isMyTurn() || isAnimating) return
+
+    setLastDiceRoll(value)
+    setShowDiceResult(true)
+    setIsRolling(false)
+
+    const currentPlayer = players.find((p) => p.id === myPlayer.id)
+    if (!currentPlayer) return
+
+    const previousPos = currentPlayer.position
+    const result = calculateNewPosition(
+      previousPos,
+      value,
+      STANDARD_BOARD.snakes,
+      STANDARD_BOARD.ladders
+    )
+
+    // Animate movement
+    await animateMovement(myPlayer.id, previousPos, result.position)
+
+    // Update position in database
+    await multiplayerService.updatePlayerPosition(myPlayer.id, result.position)
+
+    // Record move
+    await multiplayerService.recordMove(
+      room.id,
+      myPlayer.id,
+      myPlayer.playerName,
+      previousPos,
+      result.position,
+      value,
+      result.moveType
+    )
+
+    // Broadcast move
+    await multiplayerService.broadcastUpdate({
+      type: 'player_moved',
+      data: { id: myPlayer.id, position: result.position },
+    })
+
+    // Check win
+    if (checkWin(result.position)) {
+      await multiplayerService.endGame(room.id, myPlayer.playerName)
+      setWinner(myPlayer.playerName)
+      setGameStatus('finished')
+      return
+    }
+
+    // Next turn
+    setTimeout(async () => {
+      setShowDiceResult(false)
+      const nextIndex = (currentTurnIndex + 1) % players.length
+      const nextPlayer = players[nextIndex]
+
+      await multiplayerService.updateCurrentTurn(room.id, myPlayer.id, nextPlayer.id)
+      await multiplayerService.broadcastUpdate({
+        type: 'turn_changed',
+        data: { nextTurnIndex: nextIndex },
+      })
+
+      setCurrentTurnIndex(nextIndex)
+      setPlayers((prev) =>
+        prev.map((p, i) => ({ ...p, isCurrentTurn: i === nextIndex }))
+      )
+    }, 1500)
+  }
+
+  const animateMovement = async (playerId: string, from: number, to: number) => {
+    setIsAnimating(true)
+    setAnimatingPlayerId(playerId)
+
+    const steps = []
+    if (to > from) {
+      for (let i = from; i <= to; i++) steps.push(i)
+    } else {
+      for (let i = from; i >= to; i--) steps.push(i)
+    }
+
+    for (const step of steps) {
+      setAnimationPosition(step)
+      setPlayers((prev) =>
+        prev.map((p) => (p.id === playerId ? { ...p, position: step } : p))
+      )
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    }
+
+    setIsAnimating(false)
+    setAnimatingPlayerId(null)
+  }
+
+  const handleShareRoom = async () => {
+    try {
+      await Share.share({
+        message: `Join game Snake & Ladder!\nKode Room: ${room.roomCode}\nNama Room: ${room.name}`,
+      })
+    } catch (error) {
+      console.error('Error sharing:', error)
+    }
+  }
+
+  const handleLeaveRoom = () => {
+    Alert.alert('Keluar Room', 'Yakin mau keluar dari room ini?', [
+      { text: 'Batal', style: 'cancel' },
+      {
+        text: 'Keluar',
+        style: 'destructive',
+        onPress: async () => {
+          await multiplayerService.leaveRoom(myPlayer.id, room.id)
+          multiplayerService.unsubscribe()
+          navigation.goBack()
+        },
+      },
+    ])
+  }
+
+  // Convert OnlinePlayer to Player for components
+  const gamePlayers: Player[] = players.map((p) => ({
+    id: p.id,
+    name: p.playerName,
+    color: p.playerColor,
+    position: p.position,
+    isCurrentTurn: p.isCurrentTurn,
+    joinedAt: new Date(),
+  }))
+
+  const currentPlayer = gamePlayers[currentTurnIndex]
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.roomInfo}>
+          <Text style={styles.roomName}>{room.name}</Text>
+          <Pressable onPress={handleShareRoom}>
+            <Text style={styles.roomCode}>Kode: {room.roomCode} 📋</Text>
+          </Pressable>
+        </View>
+        <Pressable style={styles.leaveButton} onPress={handleLeaveRoom}>
+          <Text style={styles.leaveButtonText}>✕</Text>
+        </Pressable>
+      </View>
+
+      {/* Waiting Room */}
+      {gameStatus === 'waiting' && (
+        <View style={styles.waitingContainer}>
+          <Text style={styles.waitingTitle}>⏳ Menunggu Pemain</Text>
+          <Text style={styles.waitingSubtitle}>
+            {players.length}/4 pemain bergabung
+          </Text>
+
+          <View style={styles.playerList}>
+            {players.map((p, index) => (
+              <View key={p.id} style={styles.playerItem}>
+                <View style={[styles.playerColor, { backgroundColor: p.playerColor }]} />
+                <Text style={styles.playerName}>
+                  {p.playerName} {p.isHost ? '👑' : ''} {p.id === myPlayer.id ? '(Kamu)' : ''}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.shareHint}>
+            Bagikan kode room ke teman untuk bermain bersama!
+          </Text>
+
+          {isHost && (
+            <Pressable
+              style={[
+                styles.startButton,
+                players.length < 2 && styles.startButtonDisabled,
+              ]}
+              onPress={handleStartGame}
+              disabled={players.length < 2}
+            >
+              <Text style={styles.startButtonText}>
+                {players.length < 2 ? 'Tunggu Pemain Lain...' : '🎮 Mulai Game'}
+              </Text>
+            </Pressable>
+          )}
+
+          {!isHost && (
+            <Text style={styles.waitingHost}>Menunggu host memulai game...</Text>
+          )}
+        </View>
+      )}
+
+      {/* Game Playing */}
+      {gameStatus === 'playing' && (
+        <ScrollView style={styles.gameContainer}>
+          <TurnIndicator
+            currentPlayer={currentPlayer}
+            allPlayers={gamePlayers}
+            gameStatus={gameStatus}
+          />
+
+          <GameBoard players={gamePlayers} />
+
+          <View style={styles.diceContainer}>
+            <DiceRoller
+              onRoll={handleDiceRoll}
+              isDisabled={!isMyTurn() || isAnimating}
+            />
+            {!isMyTurn() && (
+              <Text style={styles.waitTurnText}>
+                Giliran {currentPlayer?.name}...
+              </Text>
+            )}
+          </View>
+        </ScrollView>
+      )}
+
+      {/* Dice Result Modal */}
+      <Modal visible={showDiceResult} transparent animationType="fade">
+        <View style={styles.diceModalOverlay}>
+          <View style={styles.diceModalContent}>
+            <Text style={styles.diceModalValue}>{lastDiceRoll}</Text>
+            <Text style={styles.diceModalText}>🎲</Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Winner Modal */}
+      <Modal visible={gameStatus === 'finished'} transparent animationType="fade">
+        <View style={styles.winnerOverlay}>
+          <View style={styles.winnerContent}>
+            <Text style={styles.winnerEmoji}>🏆</Text>
+            <Text style={styles.winnerTitle}>
+              {winner === myPlayer.playerName ? 'Kamu Menang!' : `${winner} Menang!`}
+            </Text>
+            <Pressable
+              style={styles.backButton}
+              onPress={() => {
+                multiplayerService.unsubscribe()
+                navigation.goBack()
+              }}
+            >
+              <Text style={styles.backButtonText}>Kembali ke Lobby</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f4f8',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#4CAF50',
+  },
+  roomInfo: {
+    flex: 1,
+  },
+  roomName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  roomCode: {
+    fontSize: 14,
+    color: '#e8f5e9',
+    marginTop: 2,
+  },
+  leaveButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  leaveButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  waitingContainer: {
+    flex: 1,
+    padding: 24,
+    alignItems: 'center',
+  },
+  waitingTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  waitingSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 24,
+  },
+  playerList: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+  },
+  playerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  playerColor: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  playerName: {
+    fontSize: 16,
+    color: '#333',
+  },
+  shareHint: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  startButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  startButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  startButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  waitingHost: {
+    fontSize: 16,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  gameContainer: {
+    flex: 1,
+  },
+  diceContainer: {
+    alignItems: 'center',
+    padding: 16,
+  },
+  waitTurnText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  diceModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  diceModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 40,
+    alignItems: 'center',
+  },
+  diceModalValue: {
+    fontSize: 72,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  diceModalText: {
+    fontSize: 48,
+    marginTop: 8,
+  },
+  winnerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  winnerContent: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 40,
+    alignItems: 'center',
+    width: '85%',
+  },
+  winnerEmoji: {
+    fontSize: 80,
+    marginBottom: 16,
+  },
+  winnerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  backButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+})

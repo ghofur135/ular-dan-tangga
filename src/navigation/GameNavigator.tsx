@@ -3,12 +3,22 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import HomeScreen from '../screens/HomeScreen'
 import GameScreen from '../screens/GameScreen'
 import LeaderboardScreen from '../screens/LeaderboardScreen'
+import LobbyScreen from '../screens/LobbyScreen'
+import OnlineGameScreen from '../screens/OnlineGameScreen'
+import { OnlineRoom, OnlinePlayer } from '../services/multiplayerService'
 
 // Define navigation param types
 export type RootStackParamList = {
   Home: undefined
   Game: { roomId?: string }
   Leaderboard: undefined
+  Lobby: undefined
+  OnlineGame: {
+    room: OnlineRoom
+    player: OnlinePlayer
+    players?: OnlinePlayer[]
+    isHost: boolean
+  }
 }
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
@@ -55,6 +65,21 @@ export default function GameNavigator() {
         component={LeaderboardScreen}
         options={{
           title: 'Leaderboard',
+        }}
+      />
+      <Stack.Screen
+        name="Lobby"
+        component={LobbyScreen}
+        options={{
+          title: 'Multiplayer Lobby',
+        }}
+      />
+      <Stack.Screen
+        name="OnlineGame"
+        component={OnlineGameScreen}
+        options={{
+          title: 'Online Game',
+          headerShown: false,
         }}
       />
     </Stack.Navigator>
