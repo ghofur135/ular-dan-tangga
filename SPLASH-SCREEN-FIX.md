@@ -1,150 +1,116 @@
-# 🚨 SPLASH SCREEN FIX REQUIRED
+# Splash Screen Implementation
 
-## ❌ Masalah Ditemukan
+## Problem
+Splash screen tidak muncul di web browser meskipun sudah dikonfigurasi di `app.json`.
 
-Splash screen Anda memiliki resolusi yang **TERLALU KECIL**:
-- **Current**: 307 x 550 pixels
-- **Required**: 1284 x 2778 pixels (minimum 1080 x 1920 pixels)
+## Root Cause
+`expo-splash-screen` package **TIDAK bekerja di web browser**. Package ini hanya bekerja di native mobile (Android/iOS).
 
-Ini menyebabkan splash screen tidak muncul dengan baik atau tidak muncul sama sekali.
+## Solution
 
----
-
-## ✅ Solusi Cepat
-
-### Opsi 1: Buat Splash Screen Baru (Recommended)
-
-**Menggunakan Canva (Gratis & Mudah):**
-
-1. **Buka Canva**: https://www.canva.com
-2. **Create design** → Custom size: **1284 x 2778 pixels**
-3. **Design splash screen:**
-   - Background color: `#4CAF50` (hijau)
-   - Add logo/icon di tengah (size: 400 x 400 px)
-   - Add text "Snake & Ladder Game" (optional)
-   - Keep semua element di center area
-4. **Download as PNG**
-5. **Rename file** menjadi `splash.png`
-6. **Replace file** di `SnakeLadderGame/assets/splash.png`
-
-### Opsi 2: Resize Online (Quick Fix)
-
-**Menggunakan iLoveIMG:**
-
-1. **Buka**: https://www.iloveimg.com/resize-image
-2. **Upload** file `assets/splash.png` yang sekarang
-3. **Resize to**: 1284 x 2778 pixels
-4. **Select**: "Fit to canvas" dengan background color #4CAF50
-5. **Download** hasil resize
-6. **Replace** file `assets/splash.png`
-
-⚠️ **Warning**: Resize dari image kecil akan menurunkan quality. Better buat baru!
-
-### Opsi 3: Gunakan Template
-
-**Download template splash screen:**
-
-Saya sudah buatkan spesifikasi di `docs/create-splash-screen.md`
-
-**Simple template:**
-- Canvas: 1284 x 2778 px
-- Background: Solid #4CAF50
-- Logo: White, center, 400 x 400 px
-- Text: "Snake & Ladder Game", white, bold, 60 px
-
----
-
-## 🔧 Setelah Replace Splash Screen
-
-```bash
-# 1. Verify resolusi baru
-file assets/splash.png
-# Should show: 1284 x 2778 (or similar)
-
-# 2. Test locally
-npx expo start -c
-
-# 3. Commit changes
-git add assets/splash.png
-git commit -m "fix: update splash screen to correct resolution (1284x2778)"
-git push origin main
+### 1. Native Mobile (Android/iOS) ✅
+Splash screen sudah bekerja dengan baik menggunakan konfigurasi di `app.json`:
+```json
+"splash": {
+  "image": "./assets/splash.png",
+  "resizeMode": "contain",
+  "backgroundColor": "#4CAF50"
+}
 ```
 
----
+### 2. Web Browser ✅
+Untuk web, kita menggunakan **custom React component** di `App.tsx`:
+- Menggunakan `Platform.OS` untuk detect web vs native
+- Di web: menampilkan `CustomSplashScreen` component dengan animasi fade-out
+- Di native: menggunakan `expo-splash-screen` package
+- Splash screen akan fade-out setelah 2 detik dengan animasi smooth
 
-## 📱 Resolusi yang Direkomendasikan
+## Implementation Details
 
-| Device | Resolution | Aspect Ratio |
-|--------|-----------|--------------|
-| **Universal** | 1284 x 2778 px | 9:19.5 |
-| iPhone X/11/12 | 1242 x 2436 px | 9:19.5 |
-| Full HD Android | 1080 x 1920 px | 9:16 |
-| **Minimum** | 1080 x 1920 px | 9:16 |
+### App.tsx
+```typescript
+// Custom Splash Screen Component for Web
+function CustomSplashScreen({ onFinish }: { onFinish: () => void }) {
+  const [fadeAnim] = useState(new Animated.Value(1))
 
----
+  useEffect(() => {
+    // Wait 2 seconds then fade out
+    const timer = setTimeout(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        onFinish()
+      })
+    }, 2000)
 
-## 🎨 Design Guidelines
+    return () => clearTimeout(timer)
+  }, [])
 
-### Safe Area
-Keep logo/text dalam area:
-- **Center 60%** of screen
-- **Margin**: 10% kiri/kanan, 15% atas/bawah
+  return (
+    <Animated.View style={[styles.splashContainer, { opacity: fadeAnim }]}>
+      <Image
+        source={require('./assets/splash.png')}
+        style={styles.splashImage}
+        resizeMode="contain"
+      />
+    </Animated.View>
+  )
+}
+```
 
-### Colors
-- **Background**: #4CAF50 (current green theme)
-- **Logo/Text**: White (#FFFFFF) for high contrast
+### Logic Flow
+1. App starts → Check platform
+2. If web → Show CustomSplashScreen
+3. Wait 2 seconds
+4. Fade out animation (500ms)
+5. Show main app
 
-### File Specs
-- **Format**: PNG
-- **Color Mode**: RGB or RGBA
-- **File Size**: < 2 MB (recommended < 500 KB)
-- **Compression**: Use TinyPNG if file too large
+## Files Modified
+- `App.tsx` - Added CustomSplashScreen component for web with Platform detection
+- `app.json` - Splash screen configuration for native
 
----
+## Testing
 
-## 📚 Dokumentasi Lengkap
+### Web
+```bash
+npm run web
+# Open http://localhost:8082
+# Splash screen akan muncul selama 2 detik dengan fade-out animation
+```
 
-Lihat panduan lengkap di:
-- **`docs/create-splash-screen.md`** - Complete guide
-- **`docs/splash-screen-guide.md`** - Customization guide
+### Mobile
+```bash
+# Build APK
+eas build --platform android --profile preview
 
----
+# Install dan test di device
+# Splash screen native akan muncul
+```
 
-## ⚡ Quick Action
+## Image Requirements
+- Resolution: Minimum 1080x1920, recommended 1284x2778
+- Format: PNG with transparency
+- Current: 1551x2778 pixels ✅
+- Background color: #4CAF50 (green)
 
-**Paling cepat:**
-1. Buka Canva
-2. Create 1284 x 2778 px
-3. Background #4CAF50
-4. Add logo center
-5. Download PNG
-6. Replace `assets/splash.png`
-7. Done! ✅
+## Troubleshooting
 
-**Estimated time**: 10-15 menit
-
----
-
-## 🐛 Troubleshooting
-
-**Q: Splash screen masih tidak muncul setelah replace?**
-A: 
+### Splash screen tidak muncul di web?
 1. Clear cache: `npx expo start -c`
-2. Verify file: `file assets/splash.png`
-3. Check app.json: splash.image = "./assets/splash.png"
-4. Rebuild app
+2. Hard refresh browser: Ctrl+Shift+R
+3. Check console untuk error
+4. Verify `assets/splash.png` exists
 
-**Q: Splash screen terpotong?**
-A: Keep logo di center 60% area
+### Splash screen terlalu cepat?
+Edit `App.tsx`, ubah timeout dari 2000ms ke nilai yang lebih besar:
+```typescript
+setTimeout(() => { ... }, 3000) // 3 seconds
+```
 
-**Q: File size terlalu besar?**
-A: Compress di https://tinypng.com
-
----
-
-## 📞 Need Help?
-
-Jika masih ada masalah, share:
-1. Screenshot splash screen design
-2. Output dari: `file assets/splash.png`
-3. Platform yang ditest (Android/iOS/Web)
+### Splash screen tidak fade-out?
+Check animation duration di `Animated.timing`:
+```typescript
+duration: 500 // milliseconds
+```
