@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, Modal, Animated, Easing } from 'react-native'
+import { View, Text, StyleSheet, Modal, Animated, Easing, Pressable } from 'react-native'
 
 interface GameEventModalProps {
   visible: boolean
@@ -11,12 +11,14 @@ interface GameEventModalProps {
     toPosition: number
   }
   onClose?: () => void
+  onPlayAgain?: () => void
+  onExit?: () => void
 }
 
 /**
  * GameEventModal - Animated modal for snake, ladder, winner, bounce, and collision events
  */
-export default function GameEventModal({ visible, type, playerName, collisionInfo, onClose }: GameEventModalProps) {
+export default function GameEventModal({ visible, type, playerName, collisionInfo, onClose, onPlayAgain, onExit }: GameEventModalProps) {
   const scaleAnim = useRef(new Animated.Value(0)).current
   const rotateAnim = useRef(new Animated.Value(0)).current
   const bounceAnim = useRef(new Animated.Value(0)).current
@@ -327,7 +329,17 @@ export default function GameEventModal({ visible, type, playerName, collisionInf
             {content.subtitle}
           </Text>
           {type === 'winner' && (
-            <Text style={styles.winnerSubtext}>mencapai kotak 100!</Text>
+            <>
+              <Text style={styles.winnerSubtext}>mencapai kotak 100!</Text>
+              <View style={styles.buttonContainer}>
+                <Pressable style={styles.playAgainButton} onPress={onPlayAgain}>
+                  <Text style={styles.buttonText}>🔄 Main Lagi</Text>
+                </Pressable>
+                <Pressable style={styles.exitButton} onPress={onExit}>
+                  <Text style={styles.exitButtonText}>🏠 Kembali</Text>
+                </Pressable>
+              </View>
+            </>
           )}
         </Animated.View>
       </View>
@@ -384,5 +396,36 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginTop: 8,
     opacity: 0.9,
+  },
+  buttonContainer: {
+    marginTop: 20,
+    width: '100%',
+    gap: 10,
+  },
+  playAgainButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  exitButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  exitButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 })

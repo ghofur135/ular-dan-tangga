@@ -377,7 +377,13 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         collisionInfo={collisionInfo || undefined}
         onClose={() => setShowCollisionModal(false)} 
       />
-      <GameEventModal visible={showWinnerModal} type="winner" playerName={winnerName} />
+      <GameEventModal 
+        visible={showWinnerModal} 
+        type="winner" 
+        playerName={winnerName} 
+        onPlayAgain={handlePlayAgain}
+        onExit={handleExitGame}
+      />
     </SafeAreaView>
   )
 }
