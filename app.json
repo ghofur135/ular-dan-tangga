@@ -8,6 +8,10 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "snakeladder",
+    "extra": {
+      "supabaseUrl": "https://xsqdyfexvwomwjqheskv.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzcWR5ZmV4dndvbXdqcWhlc2t2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcxNzYyNjAsImV4cCI6MjA4Mjc1MjI2MH0.Je_ZUbiVTSHunVFtQ7PEonBac548lM7WikTFcrg7_8s"
+    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "cover",
