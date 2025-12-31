@@ -45,7 +45,7 @@ export interface MoveEvent {
   newPosition: number
   diceRoll: number
   timestamp: Date
-  moveType: 'normal' | 'snake' | 'ladder'
+  moveType: 'normal' | 'snake' | 'ladder' | 'bounce'
 }
 
 /**
@@ -74,7 +74,7 @@ export interface GameUpdatePayload {
  */
 export interface MoveResult {
   position: number
-  moveType: 'normal' | 'snake' | 'ladder'
+  moveType: 'normal' | 'snake' | 'ladder' | 'bounce'
 }
 
 /**

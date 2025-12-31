@@ -334,7 +334,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           newPosition: newPos,
           diceRoll,
           timestamp: new Date(),
-          moveType: moveType as 'normal' | 'snake' | 'ladder',
+          moveType: moveType as 'normal' | 'snake' | 'ladder' | 'bounce',
         },
       ],
     }))

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Modal, Animated, Easing } from 'react-native'
 
 interface GameEventModalProps {
   visible: boolean
-  type: 'snake' | 'ladder' | 'winner'
+  type: 'snake' | 'ladder' | 'winner' | 'bounce'
   playerName?: string
   onClose?: () => void
 }
@@ -84,6 +84,43 @@ export default function GameEventModal({ visible, type, playerName, onClose }: G
             }),
           ]),
           { iterations: 3 }
+        ).start()
+      } else if (type === 'bounce') {
+        // Bounce back animation - shake left-right then bounce down
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(rotateAnim, {
+              toValue: 1,
+              duration: 100,
+              easing: Easing.linear,
+              useNativeDriver: true,
+            }),
+            Animated.timing(rotateAnim, {
+              toValue: -1,
+              duration: 200,
+              easing: Easing.linear,
+              useNativeDriver: true,
+            }),
+            Animated.timing(rotateAnim, {
+              toValue: 0,
+              duration: 100,
+              easing: Easing.linear,
+              useNativeDriver: true,
+            }),
+            Animated.timing(bounceAnim, {
+              toValue: 20,
+              duration: 200,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.timing(bounceAnim, {
+              toValue: 0,
+              duration: 200,
+              easing: Easing.in(Easing.quad),
+              useNativeDriver: true,
+            }),
+          ]),
+          { iterations: 2 }
         ).start()
       } else if (type === 'winner') {
         // Spin and bounce for winner
@@ -176,6 +213,14 @@ export default function GameEventModal({ visible, type, playerName, onClose }: G
           subtitle: 'Kamu naik ke atas!',
           bgColor: '#4CAF50',
           borderColor: '#388E3C',
+        }
+      case 'bounce':
+        return {
+          emoji: '↩️',
+          title: 'Memantul!',
+          subtitle: 'Kamu mundur dari 100!',
+          bgColor: '#FF9800',
+          borderColor: '#F57C00',
         }
       case 'winner':
         return {

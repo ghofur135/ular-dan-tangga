@@ -89,6 +89,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   const [botName, setBotName] = useState<string>('')
   const [showSnakeModal, setShowSnakeModal] = useState(false)
   const [showLadderModal, setShowLadderModal] = useState(false)
+  const [showBounceModal, setShowBounceModal] = useState(false)
   const [showWinnerModal, setShowWinnerModal] = useState(false)
   const [winnerName, setWinnerName] = useState<string>('')
   
@@ -210,6 +211,8 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             setShowSnakeModal(true)
           } else if (moveResult.moveType === 'ladder') {
             setShowLadderModal(true)
+          } else if (moveResult.moveType === 'bounce') {
+            setShowBounceModal(true)
           }
 
           // Check for win
@@ -402,6 +405,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
                   rolled 🎲 {lastMove.diceRoll} → moved from {lastMove.previousPosition} to {lastMove.newPosition}
                   {lastMove.moveType === 'snake' && ' 🐍'}
                   {lastMove.moveType === 'ladder' && ' 🪜'}
+                  {lastMove.moveType === 'bounce' && ' ↩️'}
                 </Text>
               </View>
             ) : (
@@ -515,6 +519,13 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         visible={showLadderModal}
         type="ladder"
         onClose={() => setShowLadderModal(false)}
+      />
+
+      {/* Bounce Event Modal */}
+      <GameEventModal
+        visible={showBounceModal}
+        type="bounce"
+        onClose={() => setShowBounceModal(false)}
       />
 
       {/* Winner Event Modal */}

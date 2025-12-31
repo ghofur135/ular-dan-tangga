@@ -2,6 +2,7 @@ import { MoveEvent, MoveResult, ValidationResult, STANDARD_BOARD } from '../type
 
 /**
  * Calculate new position after dice roll, applying snake/ladder effects
+ * Uses "bounce back" rule: if dice roll exceeds 100, player bounces back
  * @param currentPosition - Current position of the player (1-100)
  * @param diceRoll - Result of dice roll (1-6)
  * @param snakes - Map of snake head positions to tail positions
@@ -19,8 +20,12 @@ import { MoveEvent, MoveResult, ValidationResult, STANDARD_BOARD } from '../type
  * // Ladder move
  * calculateNewPosition(1, 2, {}, { 3: 22 }, 100) // { position: 22, moveType: 'ladder' }
  * 
- * // Exceeds max - stay in place
- * calculateNewPosition(98, 5, {}, {}, 100) // { position: 98, moveType: 'normal' }
+ * // Bounce back - exceeds 100, bounces back
+ * calculateNewPosition(97, 5, {}, {}, 100) // { position: 98, moveType: 'bounce' }
+ * // 97 + 5 = 102, exceeds by 2, so 100 - 2 = 98
+ * 
+ * // Exact landing - wins!
+ * calculateNewPosition(98, 2, {}, {}, 100) // { position: 100, moveType: 'normal' }
  */
 export const calculateNewPosition = (
   currentPosition: number,
@@ -31,11 +36,30 @@ export const calculateNewPosition = (
 ): MoveResult => {
   let newPos = currentPosition + diceRoll
 
-  // Can't go beyond max position - stay in place
+  // Bounce back rule: if exceeds max, bounce back from 100
   if (newPos > maxPosition) {
+    const excess = newPos - maxPosition
+    newPos = maxPosition - excess
+    
+    // Check for snakes at bounce position
+    if (snakes[newPos] !== undefined) {
+      return {
+        position: snakes[newPos],
+        moveType: 'snake',
+      }
+    }
+
+    // Check for ladders at bounce position
+    if (ladders[newPos] !== undefined) {
+      return {
+        position: ladders[newPos],
+        moveType: 'ladder',
+      }
+    }
+
     return {
-      position: currentPosition,
-      moveType: 'normal',
+      position: newPos,
+      moveType: 'bounce',
     }
   }
 
@@ -144,7 +168,7 @@ export const validateMove = (
  * @param previousPosition - Position before the move
  * @param newPosition - Position after the move
  * @param diceRoll - The dice roll value
- * @param moveType - Type of move (normal, snake, or ladder)
+ * @param moveType - Type of move (normal, snake, ladder, or bounce)
  * @returns MoveEvent object
  */
 export const createMoveEvent = (
@@ -153,7 +177,7 @@ export const createMoveEvent = (
   previousPosition: number,
   newPosition: number,
   diceRoll: number,
-  moveType: 'normal' | 'snake' | 'ladder'
+  moveType: 'normal' | 'snake' | 'ladder' | 'bounce'
 ): MoveEvent => {
   return {
     playerId,

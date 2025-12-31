@@ -41,6 +41,7 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
   const [winner, setWinner] = useState<string | null>(null)
   const [showSnakeModal, setShowSnakeModal] = useState(false)
   const [showLadderModal, setShowLadderModal] = useState(false)
+  const [showBounceModal, setShowBounceModal] = useState(false)
   const [showWinnerModal, setShowWinnerModal] = useState(false)
 
   // Subscribe to room updates
@@ -159,11 +160,13 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
     // Animate movement
     await animateMovement(myPlayer.id, previousPos, result.position)
 
-    // Show event modal for snake/ladder
+    // Show event modal for snake/ladder/bounce
     if (result.moveType === 'snake') {
       setShowSnakeModal(true)
     } else if (result.moveType === 'ladder') {
       setShowLadderModal(true)
+    } else if (result.moveType === 'bounce') {
+      setShowBounceModal(true)
     }
 
     // Update position in database
@@ -414,6 +417,13 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
         visible={showLadderModal}
         type="ladder"
         onClose={() => setShowLadderModal(false)}
+      />
+
+      {/* Bounce Event Modal */}
+      <GameEventModal
+        visible={showBounceModal}
+        type="bounce"
+        onClose={() => setShowBounceModal(false)}
       />
 
       {/* Winner Event Modal */}
