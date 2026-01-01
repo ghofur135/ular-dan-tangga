@@ -317,7 +317,11 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           </View>
         ) : (
           <>
-            <DiceRoller onRoll={handleDiceRoll} isDisabled={!canRoll} />
+            <DiceRoller 
+              onRoll={handleDiceRoll} 
+              isDisabled={!canRoll}
+              isMyTurn={canRoll && !isAnimating}
+            />
             {lastMove && (
               <View style={styles.historyRow}>
                 <Text style={styles.historyText}>

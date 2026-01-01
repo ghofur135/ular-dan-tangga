@@ -366,6 +366,8 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
             <DiceRoller
               onRoll={handleDiceRoll}
               isDisabled={!isMyTurn() || isAnimating}
+              isMyTurn={isMyTurn() && !isAnimating}
+            />
             />
             {!isMyTurn() && (
               <Text style={styles.waitTurnText}>

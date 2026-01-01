@@ -5,6 +5,7 @@ import { Audio } from 'expo-av'
 interface DiceRollerProps {
   onRoll: (result: number) => void
   isDisabled?: boolean
+  isMyTurn?: boolean // New prop to indicate if it's player's turn
 }
 
 // Dot positions for each dice face (1-6) - using percentages as numbers
@@ -61,7 +62,7 @@ const DiceFace = ({ value, size = DICE_SIZE, dotSize = DOT_SIZE }: { value: numb
  * DiceRoller component - 3D-style Dice with realistic rolling animation
  * Shows large bouncing result after roll
  */
-export default function DiceRoller({ onRoll, isDisabled = false }: DiceRollerProps) {
+export default function DiceRoller({ onRoll, isDisabled = false, isMyTurn = false }: DiceRollerProps) {
   const [isRolling, setIsRolling] = useState(false)
   const [diceResult, setDiceResult] = useState<number>(1)
   const [showResult, setShowResult] = useState(false)
@@ -75,6 +76,10 @@ export default function DiceRoller({ onRoll, isDisabled = false }: DiceRollerPro
   const scaleAnim = useRef(new Animated.Value(1)).current
   const resultScaleAnim = useRef(new Animated.Value(0)).current
   const resultOpacityAnim = useRef(new Animated.Value(0)).current
+  
+  // Blinking animation for when it's player's turn
+  const blinkAnim = useRef(new Animated.Value(1)).current
+  const glowAnim = useRef(new Animated.Value(0)).current
 
   // Load sound on mount
   useEffect(() => {
@@ -85,6 +90,55 @@ export default function DiceRoller({ onRoll, isDisabled = false }: DiceRollerPro
       }
     }
   }, [sound])
+
+  // Blinking animation when it's player's turn
+  useEffect(() => {
+    if (isMyTurn && !isDisabled && !isRolling) {
+      // Start blinking animation
+      const blinkAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(blinkAnim, {
+            toValue: 0.3,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(blinkAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      )
+      
+      // Start glow animation
+      const glowAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+        ])
+      )
+      
+      blinkAnimation.start()
+      glowAnimation.start()
+      
+      return () => {
+        blinkAnimation.stop()
+        glowAnimation.stop()
+      }
+    } else {
+      // Reset animations when not player's turn
+      blinkAnim.setValue(1)
+      glowAnim.setValue(0)
+    }
+  }, [isMyTurn, isDisabled, isRolling])
 
   // Play dice roll sound
   const playDiceSound = async () => {
@@ -297,20 +351,65 @@ export default function DiceRoller({ onRoll, isDisabled = false }: DiceRollerPro
         ]}
       />
 
-      {/* Roll button */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.button,
-          isDisabled && styles.buttonDisabled,
-          pressed && !isDisabled && styles.buttonPressed,
+      {/* Roll button with glassmorphism effect when it's player's turn */}
+      <Animated.View
+        style={[
+          styles.buttonContainer,
+          isMyTurn && !isDisabled && !isRolling && {
+            opacity: blinkAnim,
+            transform: [
+              {
+                scale: glowAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1, 1.05],
+                }),
+              },
+            ],
+          },
         ]}
-        onPress={handleRoll}
-        disabled={isDisabled || isRolling}
       >
-        <Text style={[styles.buttonText, isDisabled && styles.buttonTextDisabled]}>
-          {isRolling ? '🎲 Mengocok...' : isDisabled ? '⏳ Tunggu' : '🎲 Lempar Dadu'}
-        </Text>
-      </Pressable>
+        {/* Glassmorphism glow effect */}
+        {isMyTurn && !isDisabled && !isRolling && (
+          <Animated.View
+            style={[
+              styles.glassGlow,
+              {
+                opacity: glowAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 0.8],
+                }),
+                transform: [
+                  {
+                    scale: glowAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.8, 1.2],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+        )}
+        
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            isMyTurn && !isDisabled && !isRolling && styles.buttonMyTurn,
+            isDisabled && styles.buttonDisabled,
+            pressed && !isDisabled && styles.buttonPressed,
+          ]}
+          onPress={handleRoll}
+          disabled={isDisabled || isRolling}
+        >
+          <Text style={[
+            styles.buttonText, 
+            isMyTurn && !isDisabled && !isRolling && styles.buttonTextMyTurn,
+            isDisabled && styles.buttonTextDisabled
+          ]}>
+            {isRolling ? '🎲 Mengocok...' : isDisabled ? '⏳ Tunggu' : isMyTurn ? '🎲 GILIRAN KAMU!' : '🎲 Lempar Dadu'}
+          </Text>
+        </Pressable>
+      </Animated.View>
 
       {/* Status text */}
       {isDisabled && !isRolling && (
@@ -446,6 +545,31 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     marginBottom: 15,
   },
+  buttonContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glassGlow: {
+    position: 'absolute',
+    width: 200,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(76, 175, 80, 0.3)',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 0 30px rgba(76, 175, 80, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.2)',
+        backdropFilter: 'blur(10px)',
+      } as any,
+      default: {
+        shadowColor: '#4CAF50',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 15,
+        elevation: 10,
+      },
+    }),
+  },
   button: {
     backgroundColor: '#4CAF50',
     paddingHorizontal: 32,
@@ -458,6 +582,24 @@ const styles = StyleSheet.create({
     elevation: 6,
     borderWidth: 2,
     borderColor: '#45a049',
+  },
+  buttonMyTurn: {
+    backgroundColor: 'rgba(76, 175, 80, 0.9)',
+    borderColor: '#4CAF50',
+    borderWidth: 3,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 0 20px rgba(76, 175, 80, 0.8), inset 0 2px 10px rgba(255, 255, 255, 0.3)',
+        backdropFilter: 'blur(5px)',
+      } as any,
+      default: {
+        shadowColor: '#4CAF50',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 12,
+      },
+    }),
   },
   buttonPressed: {
     backgroundColor: '#45a049',
@@ -474,6 +616,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 17,
     textAlign: 'center',
+  },
+  buttonTextMyTurn: {
+    color: '#ffffff',
+    fontWeight: '900',
+    fontSize: 18,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   buttonTextDisabled: {
     color: '#888888',
