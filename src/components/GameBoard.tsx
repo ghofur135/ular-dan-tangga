@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text, StyleSheet, Dimensions, useWindowDimensions } from 'react-native'
+import { View, Text, StyleSheet, Dimensions, useWindowDimensions, ImageBackground } from 'react-native'
 import { Player, STANDARD_BOARD } from '../types/game'
 import { useGameStore } from '../store/gameStore'
 import SnakeDrawing from './SnakeDrawing'
@@ -76,14 +76,13 @@ export default function GameBoard({ players }: GameBoardProps) {
     return player.position
   }
 
-  // Generate board squares
-  const renderSquares = () => {
+  // Generate invisible overlay squares for player positioning
+  const renderOverlaySquares = () => {
     const squares = []
     
     for (let row = 0; row < BOARD_SIZE; row++) {
       for (let col = 0; col < BOARD_SIZE; col++) {
         const squareNum = getSquareNumber(row, col)
-        const isLightSquare = (row + col) % 2 === 0
         const isWinSquare = squareNum === 100
         
         // Get players on this square (considering animation position)
@@ -95,27 +94,13 @@ export default function GameBoard({ players }: GameBoardProps) {
           <View
             key={`${row}-${col}`}
             style={[
-              styles.square,
+              styles.overlaySquare,
               {
                 width: CELL_SIZE,
                 height: CELL_SIZE,
-                backgroundColor: isLightSquare ? '#90EE90' : '#228B22',
               },
             ]}
           >
-            {/* Square number */}
-            <Text
-              style={[
-                styles.squareNumber,
-                { 
-                  color: isLightSquare ? '#1a5c1a' : '#90EE90',
-                  fontSize: CELL_SIZE * 0.32,
-                },
-              ]}
-            >
-              {squareNum}
-            </Text>
-            
             {/* Win square trophy */}
             {isWinSquare && (
               <Text style={[styles.trophy, { fontSize: CELL_SIZE * 0.5 }]}>🏆</Text>
@@ -153,25 +138,34 @@ export default function GameBoard({ players }: GameBoardProps) {
       {/* Jungle border */}
       <View style={styles.jungleBorder}>
         <View style={styles.boardContainer}>
-          {/* Board grid */}
-          <View style={[styles.board, { width: BOARD_WIDTH, height: BOARD_WIDTH }]}>
-            {renderSquares()}
-          </View>
+          {/* Board background image */}
+          <ImageBackground
+            source={require('../../assets/board.png')}
+            style={[styles.boardBackground, { width: BOARD_WIDTH, height: BOARD_WIDTH }]}
+            resizeMode="cover"
+          >
+            {/* Invisible overlay grid for player positioning */}
+            <View style={[styles.overlayGrid, { width: BOARD_WIDTH, height: BOARD_WIDTH }]}>
+              {renderOverlaySquares()}
+            </View>
+          </ImageBackground>
           
           {/* Snakes overlay */}
           {SNAKES_VISUAL.map((snake, index) => {
             const headPos = getSquarePosition(snake.head, CELL_SIZE)
             const tailPos = getSquarePosition(snake.tail, CELL_SIZE)
             return (
-              <SnakeDrawing
-                key={`snake-${index}`}
-                startX={headPos.x}
-                startY={headPos.y}
-                endX={tailPos.x}
-                endY={tailPos.y}
-                color={snake.color}
-                cellSize={CELL_SIZE}
-              />
+              <View key={`snake-container-${index}`} style={styles.overlayElement}>
+                <SnakeDrawing
+                  key={`snake-${index}`}
+                  startX={headPos.x}
+                  startY={headPos.y}
+                  endX={tailPos.x}
+                  endY={tailPos.y}
+                  color={snake.color}
+                  cellSize={CELL_SIZE}
+                />
+              </View>
             )
           })}
           
@@ -180,14 +174,16 @@ export default function GameBoard({ players }: GameBoardProps) {
             const bottomPos = getSquarePosition(ladder.bottom, CELL_SIZE)
             const topPos = getSquarePosition(ladder.top, CELL_SIZE)
             return (
-              <LadderDrawing
-                key={`ladder-${index}`}
-                startX={bottomPos.x}
-                startY={bottomPos.y}
-                endX={topPos.x}
-                endY={topPos.y}
-                cellSize={CELL_SIZE}
-              />
+              <View key={`ladder-container-${index}`} style={styles.overlayElement}>
+                <LadderDrawing
+                  key={`ladder-${index}`}
+                  startX={bottomPos.x}
+                  startY={bottomPos.y}
+                  endX={topPos.x}
+                  endY={topPos.y}
+                  cellSize={CELL_SIZE}
+                />
+              </View>
             )
           })}
         </View>
@@ -217,28 +213,34 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     overflow: 'hidden',
   },
-  board: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  boardBackground: {
     borderRadius: 4,
     overflow: 'hidden',
   },
-  square: {
+  overlayGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  overlaySquare: {
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
     padding: 1,
     position: 'relative',
-  },
-  squareNumber: {
-    fontWeight: 'bold',
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 1,
+    backgroundColor: 'transparent', // Invisible overlay
   },
   trophy: {
     position: 'absolute',
     top: '25%',
     left: '25%',
+  },
+  overlayElement: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 10,
   },
   playerTokenWrapper: {
     position: 'absolute',
