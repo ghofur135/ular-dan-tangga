@@ -1,46 +1,82 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
   TextInput,
   Pressable,
   StyleSheet,
-  Alert,
   StatusBar,
   Dimensions,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+  Modal,
+  Animated,
+  Easing,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Audio } from 'expo-av'
 import { useGameStore } from '../store/gameStore'
 import { AVATAR_COLORS } from '../types/game'
-import { playClickSound, startBackgroundMusic, stopBackgroundMusic, pauseBackgroundMusic, resumeBackgroundMusic, isBackgroundMusicPlaying } from '../utils/soundUtils'
+import {
+  playClickSound,
+  startBackgroundMusic,
+  stopBackgroundMusic,
+  pauseBackgroundMusic,
+  resumeBackgroundMusic,
+  isBackgroundMusicPlaying,
+} from '../utils/soundUtils'
 import AvatarPicker from '../components/AvatarPicker'
 
 interface HomeScreenProps {
   navigation: any
 }
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window')
-const isSmallScreen = SCREEN_HEIGHT < 700
+const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
-/**
- * HomeScreen - Entry point for creating or joining game rooms
- * Redesigned for single-screen layout without scrolling
- */
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const insets = useSafeAreaInsets()
   const [playerName, setPlayerName] = useState('')
+  const [pin, setPin] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
   const [selectedAvatar, setSelectedAvatar] = useState(1)
   const [isMusicOn, setIsMusicOn] = useState(true)
 
-  const { createGameRoom } = useGameStore()
+  // Custom Alert State
+  const [alertVisible, setAlertVisible] = useState(false)
+  const [alertConfig, setAlertConfig] = useState({ title: '', message: '' })
+  const scaleAnim = useRef(new Animated.Value(0)).current
+
+  const { createGameRoom, login, isAuthenticated, currentUser, user } = useGameStore()
+
+  // Custom Alert Helper
+  const showCustomAlert = (title: string, message: string) => {
+    setAlertConfig({ title, message })
+    setAlertVisible(true)
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 5,
+      tension: 40,
+      useNativeDriver: true,
+    }).start()
+    playClickSound() // Reuse click sound for alert pop
+  }
+
+  const hideCustomAlert = () => {
+    Animated.timing(scaleAnim, {
+      toValue: 0,
+      duration: 150,
+      easing: Easing.ease,
+      useNativeDriver: true,
+    }).start(() => setAlertVisible(false))
+  }
 
   // Get color based on avatar
   const getAvatarColor = (avatar: number) => {
     return AVATAR_COLORS[avatar] || AVATAR_COLORS[1]
   }
 
-  // Configure audio mode and play welcome intro music on mount
+  // Effect to handle music
   useEffect(() => {
     const setupAudio = async () => {
       try {
@@ -56,10 +92,20 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       }
     }
     setupAudio()
-    return () => {}
+    return () => { }
   }, [])
 
-  // Toggle music on/off
+  // Auto-fill if user is logged in
+  useEffect(() => {
+    if (currentUser) {
+      setPlayerName(currentUser.username)
+      setSelectedAvatar(currentUser.avatar || 1)
+    } else if (user?.email) {
+      // Fallback for non-pin auth users
+      setPlayerName(user.email)
+    }
+  }, [currentUser, user])
+
   const toggleMusic = async () => {
     playClickSound()
     const isPlaying = await isBackgroundMusicPlaying()
@@ -72,258 +118,422 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }
   }
 
+  const handleLogin = async (): Promise<boolean> => {
+    if (isAuthenticated && currentUser) return true
+
+    if (!playerName.trim() || !pin.trim()) {
+      showCustomAlert(
+        'Eits, Tunggu Dulu! ✋',
+        'Kamu wajib isi Nama & PIN dulu ya sebelum main. Ini biar progress main kamu kesimpen! 😉'
+      )
+      return false
+    }
+
+    if (pin.length < 4) {
+      showCustomAlert('PIN Kurang Panjang', 'PIN minimal 4 angka biar aman ya! 🔒')
+      return false
+    }
+
+    setIsLoading(true)
+    const { success, error } = await login(playerName.trim(), pin.trim(), selectedAvatar)
+    setIsLoading(false)
+
+    if (!success) {
+      showCustomAlert('Gagal Masuk', error || 'Terjadi kesalahan')
+      return false
+    }
+    return true
+  }
+
   const handleQuickPlay = async () => {
     playClickSound()
-    if (!playerName.trim()) {
-      Alert.alert('Error', 'Masukkan nama kamu')
-      return
-    }
+    const success = await handleLogin()
+    if (!success) return
+
     await stopBackgroundMusic()
-    createGameRoom(`Game-${Date.now().toString(36)}`, playerName.trim(), getAvatarColor(selectedAvatar), selectedAvatar)
+    createGameRoom(
+      `Game-${Date.now().toString(36)}`,
+      playerName.trim(),
+      getAvatarColor(selectedAvatar),
+      selectedAvatar
+    )
     navigation.navigate('Game')
   }
 
-  const handleNavigate = async (screen: string) => {
+  const handleNavigateLobby = async () => {
     playClickSound()
-    if (screen === 'Lobby') {
-      await stopBackgroundMusic()
-    }
-    navigation.navigate(screen)
+    const success = await handleLogin()
+    if (!success) return
+
+    await stopBackgroundMusic()
+    navigation.navigate('Lobby')
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f0f4f8" translucent={false} />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable style={styles.musicToggle} onPress={toggleMusic}>
-          <Text style={styles.musicToggleText}>{isMusicOn ? '🔊' : '🔇'}</Text>
-        </Pressable>
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>🐍 Ular & Tangga 🪜</Text>
-          <Text style={styles.subtitle}>Permainan Papan Multiplayer</Text>
+    <View style={styles.screenContainer}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F0FDF4" translucent={false} />
+
+      {/* Custom Modal Alert */}
+      <Modal
+        transparent
+        visible={alertVisible}
+        animationType="none"
+        onRequestClose={hideCustomAlert}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View style={[styles.modalContent, { transform: [{ scale: scaleAnim }] }]}>
+            <Text style={styles.modalEmoji}>🚨</Text>
+            <Text style={styles.modalTitle}>{alertConfig.title}</Text>
+            <Text style={styles.modalMessage}>{alertConfig.message}</Text>
+            <Pressable style={styles.modalButton} onPress={hideCustomAlert}>
+              <Text style={styles.modalButtonText}>Oke, Siap!</Text>
+            </Pressable>
+          </Animated.View>
         </View>
-        <Pressable style={styles.leaderboardBtn} onPress={() => handleNavigate('Leaderboard')}>
-          <Text style={styles.leaderboardBtnText}>🏆</Text>
-        </Pressable>
+      </Modal>
+
+      {/* Header Section */}
+      <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? 16 : insets.top }]}>
+        <View style={styles.titleWrapper}>
+          <Text style={styles.emojiTitle}>🐍🎲🪜</Text>
+          <Text style={styles.gameTitle}>ULAR TANGGA</Text>
+          <Text style={styles.gameSubtitle}>SUPER SERU</Text>
+        </View>
       </View>
 
-      {/* Main Content */}
-      <View style={styles.mainContent}>
-        {/* Player Setup Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>👤 Pengaturan Pemain</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Masukkan nama kamu"
-            value={playerName}
-            onChangeText={setPlayerName}
-            maxLength={20}
-            placeholderTextColor="#999"
-          />
-          <AvatarPicker
-            selectedAvatar={selectedAvatar}
-            onSelect={setSelectedAvatar}
-            size={isSmallScreen ? 'small' : 'medium'}
-          />
-        </View>
+      {/* Main Content Area - Scrollable */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Main Card */}
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.headerActions}>
+                <Text style={styles.cardTitle}>
+                  {isAuthenticated ? `Halo, ${currentUser?.username || playerName}!` : 'Mulai Petualangan'}
+                </Text>
+                <View style={styles.miniActions}>
+                  <Pressable style={styles.miniBtn} onPress={toggleMusic}>
+                    <Text style={{ fontSize: 16 }}>{isMusicOn ? '🔊' : '🔇'}</Text>
+                  </Pressable>
+                  <Pressable style={[styles.miniBtn, { backgroundColor: '#FFD700' }]} onPress={() => navigation.navigate('Leaderboard')}>
+                    <Text style={{ fontSize: 16 }}>🏆</Text>
+                  </Pressable>
+                </View>
+              </View>
+              {!isAuthenticated && <Text style={styles.cardSubtitle}>Isi nama & PIN untuk simpan progress</Text>}
+            </View>
 
-        {/* Game Mode Buttons */}
-        <View style={styles.buttonContainer}>
+            <View style={styles.inputGroup}>
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputLabel}>Nama Panggilan</Text>
+                <TextInput
+                  style={[styles.input, isAuthenticated && styles.inputDisabled]}
+                  placeholder="Contoh: Jagoan123"
+                  value={playerName}
+                  onChangeText={setPlayerName}
+                  maxLength={12}
+                  editable={!isAuthenticated}
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputLabel}>PIN Rahasia</Text>
+                <TextInput
+                  style={[styles.input, isAuthenticated && styles.inputDisabled]}
+                  placeholder="minimal 4 angka"
+                  value={pin}
+                  onChangeText={setPin}
+                  keyboardType="numeric"
+                  maxLength={6}
+                  secureTextEntry
+                  editable={!isAuthenticated}
+                  placeholderTextColor="#A0AEC0"
+                />
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <AvatarPicker
+              selectedAvatar={selectedAvatar}
+              onSelect={(av) => {
+                if (!isAuthenticated) setSelectedAvatar(av)
+              }}
+              size="medium"
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Bottom Action Bar - Always visible */}
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
+        <View style={styles.buttonRow}>
           <Pressable
             style={({ pressed }) => [
-              styles.gameButton,
-              styles.quickPlayButton,
-              pressed && styles.buttonPressed,
+              styles.actionButton,
+              styles.btnSecondary,
+              pressed && styles.btnPressed,
             ]}
             onPress={handleQuickPlay}
           >
-            <Text style={styles.gameButtonEmoji}>🤖</Text>
-            <View style={styles.gameButtonTextContainer}>
-              <Text style={styles.gameButtonTitle}>Main vs Bot</Text>
-              <Text style={styles.gameButtonDesc}>Main cepat melawan komputer</Text>
-            </View>
+            <Text style={styles.btnSecondaryText}>🤖 VS Bot</Text>
           </Pressable>
 
           <Pressable
             style={({ pressed }) => [
-              styles.gameButton,
-              styles.onlineButton,
-              pressed && styles.buttonPressed,
+              styles.actionButton,
+              styles.btnPrimary,
+              pressed && styles.btnPressed,
             ]}
-            onPress={() => handleNavigate('Lobby')}
+            onPress={handleNavigateLobby}
           >
-            <Text style={styles.gameButtonEmoji}>🌐</Text>
-            <View style={styles.gameButtonTextContainer}>
-              <Text style={styles.gameButtonTitle}>Multiplayer Online</Text>
-              <Text style={styles.gameButtonDesc}>Main bareng teman</Text>
-            </View>
+            {isLoading ? (
+              <Text style={styles.btnPrimaryText}>Loading...</Text>
+            ) : (
+              <Text style={styles.btnPrimaryText}>🌏 Multiplayer</Text>
+            )}
           </Pressable>
         </View>
-      </View>
-
-      {/* Footer - Game Rules */}
-      <View style={styles.footer}>
-        <View style={styles.rulesRow}>
-          <Text style={styles.ruleItem}>🎲 Lempar dadu</Text>
-          <Text style={styles.ruleItem}>🪜 Naik tangga</Text>
-          <Text style={styles.ruleItem}>🐍 Turun ular</Text>
-          <Text style={styles.ruleItem}>🏆 Sampai 100!</Text>
-        </View>
+        <Text style={styles.versionText}>v1.0.0 • Online & Offline</Text>
       </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screenContainer: {
     flex: 1,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: '#F0FDF4', // Light green minty background
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 24,
+    borderRadius: 24,
+    width: '80%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#4B5563',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButton: {
+    backgroundColor: '#15803D',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   header: {
-    flexDirection: 'row',
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    backgroundColor: '#F0FDF4',
+    zIndex: 10,
+  },
+  titleWrapper: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 4,
+    marginTop: 20,
+    marginBottom: 10,
   },
-  musicToggle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+  emojiTitle: {
+    fontSize: 42,
+    marginBottom: 0,
   },
-  musicToggleText: {
-    fontSize: 20,
+  gameTitle: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#15803D', // Strong Green
+    letterSpacing: 1,
+    textShadowColor: 'rgba(21, 128, 61, 0.2)',
+    textShadowOffset: { width: 1, height: 2 },
+    textShadowRadius: 4,
   },
-  titleContainer: {
-    alignItems: 'center',
-    flex: 1,
+  gameSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#F59E0B',
+    letterSpacing: 4,
+    marginTop: 4,
   },
-  title: {
-    fontSize: isSmallScreen ? 22 : 26,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  leaderboardBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFD700',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  leaderboardBtnText: {
-    fontSize: 20,
-  },
-  mainContent: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    justifyContent: 'center',
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 140, // Space for bottom bar
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    padding: 24,
+    shadowColor: '#15803D',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+    marginBottom: 20,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  miniActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  miniBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardHeader: {
+    marginBottom: 20,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  inputGroup: {
+    gap: 16,
+  },
+  inputWrapper: {
+    gap: 6,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#374151',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    borderWidth: 2,
+    borderColor: '#EEEEEE',
+  },
+  inputDisabled: {
+    backgroundColor: '#FAFAFA',
+    color: '#9CA3AF',
+    borderColor: 'transparent',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 20,
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    paddingTop: 20,
+    paddingHorizontal: 24,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 20,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
     marginBottom: 12,
   },
-  buttonContainer: {
-    gap: 12,
-  },
-  gameButton: {
-    flexDirection: 'row',
+  actionButton: {
+    flex: 1,
+    height: 60,
+    borderRadius: 20,
+    justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 14,
-    padding: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    flexDirection: 'row',
   },
-  quickPlayButton: {
-    backgroundColor: '#4CAF50',
+  btnPrimary: {
+    backgroundColor: '#15803D', // Green
+    flex: 1.5, // Bigger than secondary
+    shadowColor: '#15803D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  onlineButton: {
-    backgroundColor: '#2196F3',
-  },
-  buttonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
-  gameButtonEmoji: {
-    fontSize: 32,
-    marginRight: 14,
-  },
-  gameButtonTextContainer: {
+  btnSecondary: {
+    backgroundColor: '#F0FDF4', // Light Green
+    borderWidth: 2,
+    borderColor: '#15803D',
     flex: 1,
   },
-  gameButtonTitle: {
-    color: '#ffffff',
-    fontSize: 17,
+  btnPressed: {
+    transform: [{ scale: 0.96 }],
+    opacity: 0.9,
+  },
+  btnPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  gameButtonDesc: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
-    marginTop: 2,
+  btnSecondaryText: {
+    color: '#15803D',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
-  footer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingTop: 8,
-  },
-  rulesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#e8f5e9',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-  },
-  ruleItem: {
+  versionText: {
+    textAlign: 'center',
     fontSize: 11,
-    color: '#2E7D32',
+    color: '#9CA3AF',
     fontWeight: '500',
   },
 })

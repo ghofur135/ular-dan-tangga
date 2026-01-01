@@ -32,7 +32,7 @@ export default function AvatarPicker({ selectedAvatar, onSelect, size = 'medium'
             <Image
               source={PLAYER_AVATARS[index]}
               style={[styles.avatarImage, { width: avatarSize, height: avatarSize }]}
-              resizeMode="cover"
+              resizeMode="contain"
             />
           </Pressable>
         ))}

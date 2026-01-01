@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { Player, GameRoom, MoveEvent, STANDARD_BOARD, CollisionEvent } from '../types/game'
+import { authService, RegisteredUser } from '../services/authService'
 import { CUSTOM_BOARD_CONFIG } from '../config/boardConfig'
 import { calculateNewPosition, getNextPlayer, checkWin, createMoveEvent, checkCollision } from '../utils/boardLogic'
 
@@ -22,9 +23,11 @@ interface GameStore {
 
   // Auth
   user: any
+  currentUser: RegisteredUser | null
   isAuthenticated: boolean
 
   // Actions
+  login: (username: string, pin: string, avatar: number) => Promise<{ success: boolean; error?: string }>
   initializeAuth: (session: any) => void
   setCurrentPlayerId: (playerId: string) => void
   createGameRoom: (roomName: string, playerName: string, playerColor: string, avatar?: number) => void
@@ -85,9 +88,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
   hasBonusRoll: false,
   lastCollision: null,
   user: null,
+  currentUser: null,
   isAuthenticated: false,
 
   // Auth
+  login: async (username, pin, avatar) => {
+    const { user, error } = await authService.loginOrRegister(username, pin, avatar)
+    if (user) {
+      set({
+        currentUser: user,
+        isAuthenticated: true,
+        // Also update standard user field for compatibility
+        user: { id: user.id, email: user.username }
+      })
+      return { success: true }
+    }
+    return { success: false, error: error || 'Login gagal' }
+  },
   initializeAuth: (session) => {
     set({
       currentSession: session,
@@ -102,10 +119,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // Create room
   createGameRoom: (roomName, playerName, playerColor, avatar = 1) => {
-    const playerId = `player-${Date.now()}`
+    const state = get()
+    // Use authenticated ID if available, otherwise random
+    const playerId = state.currentUser ? state.currentUser.id : `player-${Date.now()}`
+
+    // Use authenticated name if available (though passed arg should match)
+    const finalName = state.currentUser ? state.currentUser.username : playerName
+
     const newPlayer: Player = {
       id: playerId,
-      name: playerName,
+      name: finalName,
       color: playerColor,
       avatar: avatar,
       position: 1,
@@ -135,10 +158,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // Join room
   joinGameRoom: (roomId, playerName, playerColor, avatar = 1) => {
     const state = get()
-    const playerId = `player-${Date.now()}`
+    const playerId = state.currentUser ? state.currentUser.id : `player-${Date.now()}`
+    const finalName = state.currentUser ? state.currentUser.username : playerName
+
     const newPlayer: Player = {
       id: playerId,
-      name: playerName,
+      name: finalName,
       color: playerColor,
       avatar: avatar,
       position: 1,
@@ -271,7 +296,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Set bonus roll if dice is 6
     const hasBonusRoll = diceRoll === 6
 
-    set({ 
+    set({
       players: updatedPlayers,
       hasBonusRoll,
       lastCollision: collision,
