@@ -6,6 +6,21 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.9.0] - 2026-01-02
+
+### 🐛 Bug Fixes & UI Enhancements
+
+### Added
+- ✅ 🖼️ **GenericModal Component**: Komponen modal baru yang *rich*, animasi halus, dan support penuh untuk Web.
+- ✅ ⚡ **Web Support**: Power Ups (Teleport, Shield) sekarang bisa digunakan di Web berkat penggantian `Alert.alert` dengan custom modal.
+- ✅ 🤖 **Bot Duplicate Check**: Cek ganda pada *state update* untuk mencegah bug "Bot Cloning" saat navigasi cepat.
+
+### Changed
+- Replaced semua `Alert.alert` di fitur Power Ups dengan `GenericModal`.
+- Updated `GameScreen` bot initialization logic untuk mencegah race condition.
+
+---
+
 ## [1.8.0] - 2026-01-01
 
 ### 🎨 Dynamic Theme & Power Ups Update
@@ -411,6 +426,7 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.9.0 | 2026-01-02 | Bug Fixes (Bot Duplicate), Generic Modal, Web Powerups Support |
 | 1.8.0 | 2026-01-01 | Dynamic Board Themes & VS Bot Power Ups (Shield, Custom Dice, Teleport) |
 | 1.7.0 | 2026-01-01 | Modern UI Redesign, Auth Integration, Stats Tracking |
 | 1.6.0 | 2025-01-01 | Enhanced audio system, custom board, glassmorphism effects |
