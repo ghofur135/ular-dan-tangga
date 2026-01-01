@@ -14,6 +14,9 @@ import GameBoard from '../components/GameBoard'
 import DiceRoller from '../components/DiceRoller'
 import GameEventModal from '../components/GameEventModal'
 import { multiplayerService, OnlineRoom, OnlinePlayer, GameUpdate } from '../services/multiplayerService'
+import { useGameStore } from '../store/gameStore'
+
+
 import { calculateNewPosition, checkWin } from '../utils/boardLogic'
 import { Player } from '../types/game'
 import { CUSTOM_BOARD_CONFIG } from '../config/boardConfig'
@@ -138,6 +141,10 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
         setGameStatus('finished')
         setWinner(update.data.winnerName)
         playWinnerSound() // Play winner celebration sound for all players
+
+        // Record stats
+        const isWinner = update.data.winnerName === myPlayer.playerName
+        useGameStore.getState().updateStats(isWinner, 0)
         break
 
       case 'host_left':

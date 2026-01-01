@@ -1,3 +1,4 @@
+import { supabase } from '../config/supabase'
 import { create } from 'zustand'
 import { Player, GameRoom, MoveEvent, STANDARD_BOARD, CollisionEvent } from '../types/game'
 import { authService, RegisteredUser } from '../services/authService'
@@ -27,6 +28,7 @@ interface GameStore {
   isAuthenticated: boolean
 
   // Actions
+  updateStats: (isWin: boolean, moves: number) => Promise<void>
   login: (username: string, pin: string, avatar: number) => Promise<{ success: boolean; error?: string }>
   initializeAuth: (session: any) => void
   setCurrentPlayerId: (playerId: string) => void
@@ -92,6 +94,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isAuthenticated: false,
 
   // Auth
+  updateStats: async (isWin, moves) => {
+    const state = get()
+    if (!state.currentUser && !state.user?.email) return // Only for logged in users
+
+    const playerName = state.currentUser?.username || state.user?.email
+
+    try {
+      const { error } = await supabase.rpc('update_player_stats', {
+        p_player_name: playerName,
+        p_won: isWin,
+        p_moves: moves
+      })
+
+      if (error) console.error('Error updating stats:', error)
+    } catch (err) {
+      console.error('Error updating stats:', err)
+    }
+  },
+
   login: async (username, pin, avatar) => {
     const { user, error } = await authService.loginOrRegister(username, pin, avatar)
     if (user) {
