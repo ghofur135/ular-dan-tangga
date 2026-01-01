@@ -25,7 +25,7 @@ export interface OnlinePlayer {
 }
 
 export interface GameUpdate {
-  type: 'player_joined' | 'player_left' | 'game_started' | 'player_moved' | 'turn_changed' | 'game_ended'
+  type: 'player_joined' | 'player_left' | 'game_started' | 'player_moved' | 'turn_changed' | 'game_ended' | 'host_left'
   data: any
 }
 
@@ -476,7 +476,7 @@ class MultiplayerService {
   }
 
   /**
-   * Leave room
+   * Leave room - if host leaves, end game for all players
    */
   async leaveRoom(playerId: string, roomId: string): Promise<void> {
     try {
@@ -484,25 +484,55 @@ class MultiplayerService {
       this.stopHeartbeat()
       this.currentPlayerId = null
 
+      // Check if leaving player is the host
+      const { data: leavingPlayer } = await supabase
+        .from('game_players')
+        .select('is_host')
+        .eq('id', playerId)
+        .single()
+
+      const isHost = leavingPlayer?.is_host || false
+
+      // Remove the leaving player from database first
       await supabase.from('game_players').delete().eq('id', playerId)
 
-      // Check remaining players
-      const { data: remainingPlayers } = await supabase
-        .from('game_players')
-        .select('id')
-        .eq('room_id', roomId)
+      // If host is leaving, end the game for all players
+      if (isHost) {
+        // Broadcast game ended message
+        await this.broadcastUpdate({
+          type: 'host_left',
+          data: { message: 'Host telah meninggalkan permainan. Game berakhir.' },
+        })
 
-      const playerCount = remainingPlayers?.length || 0
-
-      if (playerCount === 0) {
-        // No players left, delete the room
-        await this.deleteRoom(roomId)
-      } else {
-        // Update player count
+        // Update room status to finished
         await supabase
           .from('game_rooms')
-          .update({ current_players: playerCount })
+          .update({ status: 'finished' })
           .eq('id', roomId)
+
+        // Delete the room after a short delay to allow message propagation
+        setTimeout(async () => {
+          await this.deleteRoom(roomId)
+        }, 2000)
+      } else {
+        // Regular player leaving - check remaining players
+        const { data: remainingPlayers } = await supabase
+          .from('game_players')
+          .select('id')
+          .eq('room_id', roomId)
+
+        const playerCount = remainingPlayers?.length || 0
+
+        if (playerCount === 0) {
+          // No players left, delete the room
+          await this.deleteRoom(roomId)
+        } else {
+          // Update player count
+          await supabase
+            .from('game_rooms')
+            .update({ current_players: playerCount })
+            .eq('id', roomId)
+        }
       }
     } catch (error) {
       console.error('Error leaving room:', error)

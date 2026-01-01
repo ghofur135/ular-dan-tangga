@@ -54,6 +54,13 @@ dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - ✅ 🎨 Status bar color sesuai dengan theme aplikasi (#4CAF50)
 - ✅ 📱 Konsisten di semua Android devices dan screen sizes
 
+#### Host Leave Game End Feature
+- ✅ 🎮 Ketika host meninggalkan room, game berakhir untuk semua pemain
+- ✅ 👥 Alert berbeda untuk host vs regular player saat leave
+- ✅ 📡 Broadcast "host_left" event ke semua pemain di room
+- ✅ 🗑️ Auto-delete room setelah host meninggalkan permainan
+- ✅ 🏠 Semua pemain otomatis kembali ke lobby
+
 ### Changed
 - Board sekarang menggunakan gambar custom sebagai background
 - Logic ular dan tangga disesuaikan dengan posisi di gambar
@@ -63,6 +70,7 @@ dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Android app icon menggunakan `assets/game-icon.png`
 - OnlineGameScreen UI sekarang identik dengan GameScreen
 - Fixed Android status bar collision dengan header aplikasi
+- Host leave game end: game berakhir ketika host meninggalkan room
 
 ### Technical
 - Added `CUSTOM_BOARD_CONFIG` di `src/config/boardConfig.ts`
@@ -78,6 +86,11 @@ dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Fixed Android status bar collision menggunakan useSafeAreaInsets
 - Replaced deprecated SafeAreaView dengan modern safe area handling
 - Updated StatusBar configuration untuk konsistensi cross-platform
+- Added host leave game end feature untuk multiplayer
+- Host leaving room now ends game for all players
+- Different leave alerts for host vs regular players
+- Added host_left event type dan broadcast system
+- Auto-delete room when host leaves dengan proper cleanup
 
 ---
 

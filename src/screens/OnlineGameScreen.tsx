@@ -138,6 +138,24 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
         setWinner(update.data.winnerName)
         playWinnerSound() // Play winner celebration sound for all players
         break
+
+      case 'host_left':
+        // Host has left, show alert and end game
+        Alert.alert(
+          'Game Berakhir',
+          update.data.message || 'Host telah meninggalkan permainan. Game berakhir.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                multiplayerService.unsubscribe()
+                navigation.goBack()
+              },
+            },
+          ]
+        )
+        setGameStatus('finished')
+        break
     }
   }, [])
 
@@ -274,10 +292,15 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
   }
 
   const handleLeaveRoom = () => {
-    Alert.alert('Keluar Room', 'Yakin mau keluar dari room ini?', [
+    const alertTitle = isHost ? 'Akhiri Permainan' : 'Keluar Room'
+    const alertMessage = isHost 
+      ? 'Sebagai host, jika kamu keluar maka permainan akan berakhir untuk semua pemain. Yakin?'
+      : 'Yakin mau keluar dari room ini?'
+    
+    Alert.alert(alertTitle, alertMessage, [
       { text: 'Batal', style: 'cancel' },
       {
-        text: 'Keluar',
+        text: isHost ? 'Akhiri Game' : 'Keluar',
         style: 'destructive',
         onPress: async () => {
           await multiplayerService.leaveRoom(myPlayer.id, room.id)
