@@ -3,6 +3,9 @@ import { Audio } from 'expo-av'
 // Global background music reference
 let backgroundMusic: Audio.Sound | null = null
 
+// Global game background music reference
+let gameBackgroundMusic: Audio.Sound | null = null
+
 /**
  * Start background music (welcome intro)
  */
@@ -178,5 +181,80 @@ export const playLadderSound = async () => {
     })
   } catch (error) {
     console.log('Error playing ladder sound:', error)
+  }
+}
+
+/**
+ * Start game background music during gameplay
+ */
+export const startGameBackgroundMusic = async () => {
+  try {
+    // Stop existing game music first
+    await stopGameBackgroundMusic()
+    
+    const { sound } = await Audio.Sound.createAsync(
+      require('../../assets/sound/game-sound.mp3'),
+      { shouldPlay: true, volume: 0.45, isLooping: true } // 45% volume
+    )
+    gameBackgroundMusic = sound
+    await sound.playAsync()
+  } catch (error) {
+    console.log('Error starting game background music:', error)
+  }
+}
+
+/**
+ * Stop game background music
+ */
+export const stopGameBackgroundMusic = async () => {
+  try {
+    if (gameBackgroundMusic) {
+      await gameBackgroundMusic.stopAsync()
+      await gameBackgroundMusic.unloadAsync()
+      gameBackgroundMusic = null
+    }
+  } catch (error) {
+    console.log('Error stopping game background music:', error)
+  }
+}
+
+/**
+ * Pause game background music
+ */
+export const pauseGameBackgroundMusic = async () => {
+  try {
+    if (gameBackgroundMusic) {
+      await gameBackgroundMusic.pauseAsync()
+    }
+  } catch (error) {
+    console.log('Error pausing game background music:', error)
+  }
+}
+
+/**
+ * Resume game background music
+ */
+export const resumeGameBackgroundMusic = async () => {
+  try {
+    if (gameBackgroundMusic) {
+      await gameBackgroundMusic.playAsync()
+    }
+  } catch (error) {
+    console.log('Error resuming game background music:', error)
+  }
+}
+
+/**
+ * Check if game background music is playing
+ */
+export const isGameBackgroundMusicPlaying = async (): Promise<boolean> => {
+  try {
+    if (gameBackgroundMusic) {
+      const status = await gameBackgroundMusic.getStatusAsync()
+      return status.isLoaded && status.isPlaying
+    }
+    return false
+  } catch (error) {
+    return false
   }
 }

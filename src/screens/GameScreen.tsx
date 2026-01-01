@@ -13,7 +13,16 @@ import GameBoard from '../components/GameBoard'
 import DiceRoller from '../components/DiceRoller'
 import GameEventModal from '../components/GameEventModal'
 import { checkWin } from '../utils/boardLogic'
-import { playGameStartSound, playTurnBellSound, playSnakeSound, playLadderSound } from '../utils/soundUtils'
+import { 
+  playGameStartSound, 
+  playTurnBellSound, 
+  playSnakeSound, 
+  playLadderSound,
+  startGameBackgroundMusic,
+  stopGameBackgroundMusic,
+  pauseGameBackgroundMusic,
+  resumeGameBackgroundMusic
+} from '../utils/soundUtils'
 import { CollisionEvent } from '../types/game'
 import { databaseService } from '../services/databaseService'
 
@@ -131,6 +140,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
 
   useEffect(() => {
     if (gameStatus === 'finished' && winner) {
+      stopGameBackgroundMusic() // Stop game music when game ends
       setWinnerName(winner.name)
       setShowWinnerModal(true)
       
@@ -148,6 +158,13 @@ export default function GameScreen({ navigation }: GameScreenProps) {
       saveStats()
     }
   }, [gameStatus, winner])
+
+  // Cleanup game background music when component unmounts
+  useEffect(() => {
+    return () => {
+      stopGameBackgroundMusic()
+    }
+  }, [])
 
   const animateMovement = async (playerId: string, startPos: number, endPos: number, diceRoll: number, onComplete: () => void) => {
     setAnimating(true, playerId)
@@ -260,12 +277,26 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     }, 1500)
   }
 
-  const handlePauseGame = () => { pauseGame(); setShowPauseModal(true) }
-  const handleResumeGame = () => { setShowPauseModal(false); resumeGame() }
-  const handleQuitGame = () => { setShowPauseModal(false); resetGame(); navigation.navigate('Home') }
+  const handlePauseGame = () => { 
+    pauseGameBackgroundMusic() // Pause game music
+    pauseGame()
+    setShowPauseModal(true) 
+  }
+  const handleResumeGame = () => { 
+    resumeGameBackgroundMusic() // Resume game music
+    setShowPauseModal(false)
+    resumeGame() 
+  }
+  const handleQuitGame = () => { 
+    stopGameBackgroundMusic() // Stop game music
+    setShowPauseModal(false)
+    resetGame()
+    navigation.navigate('Home') 
+  }
   const handleStartGame = () => {
     if (players.length < 2) { Alert.alert('Butuh Lebih Banyak Pemain', 'Minimal 2 pemain untuk memulai'); return }
     playGameStartSound()
+    startGameBackgroundMusic() // Start game background music
     startGame()
   }
   const handlePlayAgain = () => {

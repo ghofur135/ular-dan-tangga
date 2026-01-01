@@ -15,7 +15,14 @@ import { multiplayerService, OnlineRoom, OnlinePlayer, GameUpdate } from '../ser
 import { calculateNewPosition, checkWin } from '../utils/boardLogic'
 import { STANDARD_BOARD, Player } from '../types/game'
 import { CUSTOM_BOARD_CONFIG } from '../config/boardConfig'
-import { playGameStartSound, playTurnBellSound, playSnakeSound, playLadderSound } from '../utils/soundUtils'
+import { 
+  playGameStartSound, 
+  playTurnBellSound, 
+  playSnakeSound, 
+  playLadderSound,
+  startGameBackgroundMusic,
+  stopGameBackgroundMusic
+} from '../utils/soundUtils'
 
 interface OnlineGameScreenProps {
   navigation: any
@@ -46,6 +53,13 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
   const [showWinnerModal, setShowWinnerModal] = useState(false)
 
   // Subscribe to room updates
+  // Cleanup game background music when component unmounts
+  useEffect(() => {
+    return () => {
+      stopGameBackgroundMusic()
+    }
+  }, [])
+
   useEffect(() => {
     multiplayerService.subscribeToRoom(room.id, handleGameUpdate)
 
@@ -95,6 +109,7 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
       case 'game_started':
         setGameStatus('playing')
         playGameStartSound()
+        startGameBackgroundMusic() // Start game background music
         loadPlayers()
         break
 
@@ -138,6 +153,7 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
     const success = await multiplayerService.startGame(room.id)
     if (success) {
       playGameStartSound()
+      startGameBackgroundMusic() // Start game background music
       setGameStatus('playing')
     }
   }
