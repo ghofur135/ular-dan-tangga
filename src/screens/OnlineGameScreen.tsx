@@ -15,7 +15,7 @@ import { multiplayerService, OnlineRoom, OnlinePlayer, GameUpdate } from '../ser
 import { calculateNewPosition, checkWin } from '../utils/boardLogic'
 import { STANDARD_BOARD, Player } from '../types/game'
 import { CUSTOM_BOARD_CONFIG } from '../config/boardConfig'
-import { playGameStartSound, playTurnBellSound } from '../utils/soundUtils'
+import { playGameStartSound, playTurnBellSound, playSnakeSound, playLadderSound } from '../utils/soundUtils'
 
 interface OnlineGameScreenProps {
   navigation: any
@@ -162,10 +162,12 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
     // Animate movement
     await animateMovement(myPlayer.id, previousPos, result.position)
 
-    // Show event modal for snake/ladder/bounce
+    // Show event modal for snake/ladder/bounce and play sounds
     if (result.moveType === 'snake') {
+      playSnakeSound()
       setShowSnakeModal(true)
     } else if (result.moveType === 'ladder') {
+      playLadderSound()
       setShowLadderModal(true)
     } else if (result.moveType === 'bounce') {
       setShowBounceModal(true)

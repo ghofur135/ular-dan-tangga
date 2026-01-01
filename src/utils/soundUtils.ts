@@ -138,3 +138,45 @@ export const playTurnBellSound = async () => {
     console.log('Error playing turn bell sound:', error)
   }
 }
+
+/**
+ * Play snake sound effect when player lands on snake
+ */
+export const playSnakeSound = async () => {
+  try {
+    const { sound } = await Audio.Sound.createAsync(
+      require('../../assets/sound/snake-sound.mp3'),
+      { volume: 0.9 }
+    )
+    await sound.playAsync()
+    // Unload after playing
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        sound.unloadAsync()
+      }
+    })
+  } catch (error) {
+    console.log('Error playing snake sound:', error)
+  }
+}
+
+/**
+ * Play ladder sound effect when player lands on ladder
+ */
+export const playLadderSound = async () => {
+  try {
+    const { sound } = await Audio.Sound.createAsync(
+      require('../../assets/sound/ladder-sound.mp3'),
+      { volume: 0.9 }
+    )
+    await sound.playAsync()
+    // Unload after playing
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        sound.unloadAsync()
+      }
+    })
+  } catch (error) {
+    console.log('Error playing ladder sound:', error)
+  }
+}

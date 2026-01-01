@@ -13,7 +13,7 @@ import GameBoard from '../components/GameBoard'
 import DiceRoller from '../components/DiceRoller'
 import GameEventModal from '../components/GameEventModal'
 import { checkWin } from '../utils/boardLogic'
-import { playGameStartSound, playTurnBellSound } from '../utils/soundUtils'
+import { playGameStartSound, playTurnBellSound, playSnakeSound, playLadderSound } from '../utils/soundUtils'
 import { CollisionEvent } from '../types/game'
 import { databaseService } from '../services/databaseService'
 
@@ -188,9 +188,15 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           applyCollision(moveResult.collision)
           setShowCollisionModal(true)
         }
-        // Then show other modals
-        else if (moveResult.moveType === 'snake') setShowSnakeModal(true)
-        else if (moveResult.moveType === 'ladder') setShowLadderModal(true)
+        // Then show other modals and play sounds
+        else if (moveResult.moveType === 'snake') {
+          playSnakeSound()
+          setShowSnakeModal(true)
+        }
+        else if (moveResult.moveType === 'ladder') {
+          playLadderSound()
+          setShowLadderModal(true)
+        }
         else if (moveResult.moveType === 'bounce') setShowBounceModal(true)
         
         if (checkWin(moveResult.position)) return
@@ -237,6 +243,14 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             applyCollision(moveResult.collision)
             setShowCollisionModal(true)
           }
+          
+          // Play sound effects for bot moves
+          if (moveResult.moveType === 'snake') {
+            playSnakeSound()
+          } else if (moveResult.moveType === 'ladder') {
+            playLadderSound()
+          }
+          
           if (!checkWin(moveResult.position)) {
             const delay = moveResult.collision ? 2500 : 500
             setTimeout(() => endPlayerTurn(), delay)
