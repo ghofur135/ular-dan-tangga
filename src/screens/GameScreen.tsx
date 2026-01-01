@@ -145,8 +145,10 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null
 
   // Add bot player for single player mode
+  // Add bot player for single player mode
   useEffect(() => {
-    if (players.length === 1 && gameStatus === 'waiting') {
+    const hasBot = players.some(p => p.id.startsWith('bot-'))
+    if (players.length === 1 && gameStatus === 'waiting' && !hasBot) {
       const botColors = ['#45B7D1', '#96CEB4', '#DDA0DD']
       const botNames = ['Bot Alice', 'Bot Bob', 'Bot Charlie']
       useGameStore.setState((state) => ({
@@ -156,7 +158,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         ],
       }))
     }
-  }, [players.length, gameStatus])
+  }, [players.length, gameStatus, players]) // Added players to dep array to ensure we have latest list
 
   useEffect(() => {
     if (gameStatus === 'finished' && winner) {

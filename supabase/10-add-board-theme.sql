@@ -23,7 +23,7 @@ BEGIN
   -- Generate unique room code
   LOOP
     v_room_code := upper(substring(md5(random()::text) from 1 for 6));
-    SELECT count(*) INTO v_count FROM game_rooms WHERE room_code = v_room_code;
+    SELECT count(*) INTO v_count FROM game_rooms gr WHERE gr.room_code = v_room_code;
     EXIT WHEN v_count = 0;
   END LOOP;
 
