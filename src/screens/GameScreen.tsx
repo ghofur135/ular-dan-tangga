@@ -14,6 +14,7 @@ import { useGameStore } from '../store/gameStore'
 import GameBoard from '../components/GameBoard'
 import DiceRoller from '../components/DiceRoller'
 import GameEventModal from '../components/GameEventModal'
+import GenericModal from '../components/GenericModal'
 import { checkWin, calculateNewPosition } from '../utils/boardLogic'
 import { CUSTOM_BOARD_CONFIG } from '../config/boardConfig'
 import {
@@ -107,7 +108,20 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   const [shieldCooldownEnd, setShieldCooldownEnd] = useState(0)
   const [customDiceCooldownEnd, setCustomDiceCooldownEnd] = useState(0)
   const [teleportUsed, setTeleportUsed] = useState(false)
+
   const [showCustomDiceModal, setShowCustomDiceModal] = useState(false)
+
+  // PowerUp Confirmation/Info Modal
+  const [showPowerUpModal, setShowPowerUpModal] = useState(false)
+  const [powerUpModalConfig, setPowerUpModalConfig] = useState<any>({
+    type: 'info',
+    title: '',
+    message: '',
+    icon: '',
+    onConfirm: undefined,
+    confirmText: 'OK',
+    cancelText: 'Batal'
+  })
 
   // Timer refresh
   const [, forceUpdate] = useState({})
@@ -146,19 +160,26 @@ export default function GameScreen({ navigation }: GameScreenProps) {
 
   // Add bot player for single player mode
   // Add bot player for single player mode
+  // Add bot player for single player mode
   useEffect(() => {
     const hasBot = players.some(p => p.id.startsWith('bot-'))
     if (players.length === 1 && gameStatus === 'waiting' && !hasBot) {
       const botColors = ['#45B7D1', '#96CEB4', '#DDA0DD']
       const botNames = ['Bot Alice', 'Bot Bob', 'Bot Charlie']
-      useGameStore.setState((state) => ({
-        players: [
-          ...state.players,
-          { id: `bot-${Date.now()}`, name: botNames[0], color: botColors[0], position: 1, isCurrentTurn: false, joinedAt: new Date() },
-        ],
-      }))
+
+      useGameStore.setState((state) => {
+        // Double check inside setState to prevent race conditions
+        if (state.players.some(p => p.id.startsWith('bot-'))) return state
+
+        return {
+          players: [
+            ...state.players,
+            { id: `bot-${Date.now()}`, name: botNames[0], color: botColors[0], position: 1, isCurrentTurn: false, joinedAt: new Date() },
+          ],
+        }
+      })
     }
-  }, [players.length, gameStatus, players]) // Added players to dep array to ensure we have latest list
+  }, [players.length, gameStatus, players])
 
   useEffect(() => {
     if (gameStatus === 'finished' && winner) {
@@ -255,7 +276,13 @@ export default function GameScreen({ navigation }: GameScreenProps) {
       if (shieldCharges === 1) { // 1 -> 0
         setShieldCooldownEnd(Date.now() + 120000)
       }
-      Alert.alert("🛡️ Perisai Aktif!", "Kamu berhasil menghindari ular!")
+      setPowerUpModalConfig({
+        type: 'success',
+        title: '🛡️ Perisai Aktif!',
+        message: 'Kamu berhasil menghindari ular!',
+        icon: '🛡️',
+      })
+      setShowPowerUpModal(true)
     }
 
     const moveResult = processMove(currentPlayerId, result, { ignoreSnakes })
@@ -294,19 +321,26 @@ export default function GameScreen({ navigation }: GameScreenProps) {
 
   const handleActivateShield = () => {
     if (Date.now() < shieldCooldownEnd) {
-      Alert.alert("Cooldown", "Perisai sedang pendinginan!")
+      setPowerUpModalConfig({
+        type: 'info',
+        title: 'Pendinginan ❄️',
+        message: 'Perisai sedang pendinginan! Sabar ya.',
+        icon: '⏳'
+      })
+      setShowPowerUpModal(true)
       return
     }
     // Activate
     setShieldCharges(3)
-    // Requirement is "delay when used". If we interpret "Used" as "Activated", we could set cooldown now.
-    // But usually Shield provides N charges, then cooldown.
-    // If I click it, I get 3 charges.
-    // I can't click it again until invalid/cooldown.
-    setShieldCooldownEnd(Date.now() + 120000) // Set cooldown immediately upon activation, or after depletion? 
-    // "delay 2 menit ketika sudah di gunakan" -> "delay 2 mins when already used".
-    // I will interpret: You use the skill (activate), you get charges. You can't use skill again for 2 mins.
-    Alert.alert("Perisai Diaktifkan", "Kamu memiliki 3x ketahanan terhadap ular!")
+    setShieldCooldownEnd(Date.now() + 120000)
+
+    setPowerUpModalConfig({
+      type: 'success',
+      title: 'Perisai Diaktifkan',
+      message: 'Kamu memiliki 3x ketahanan terhadap ular!',
+      icon: '🛡️'
+    })
+    setShowPowerUpModal(true)
   }
 
   const handleTeleport = () => {
@@ -315,42 +349,47 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     if (!canRoll) return
 
     // confirm
-    Alert.alert(
-      "Teleport 🚀",
-      "Pindah ke tangga terdekat di depanmu? Hanya bisa dipakai 1x.",
-      [
-        { text: "Batal", style: 'cancel' },
-        {
-          text: "Teleport",
-          onPress: () => {
-            const result = teleportPlayer(currentPlayerId)
-            if (!result) {
-              Alert.alert("Gagal", "Tidak ada tangga di depanmu!")
-              return
-            }
-            setTeleportUsed(true)
-            playLadderSound()
-
-            // Animate
-            const player = players.find(p => p.id === currentPlayerId)
-            animateMovement(currentPlayerId, player?.position || 1, result.position, 0, () => {
-              if (result.collision) {
-                // handle collision
-                setCollisionInfo({
-                  bumpedPlayerName: result.collision.bumpedPlayerName,
-                  fromPosition: result.collision.bumpedFromPosition,
-                  toPosition: result.collision.bumpedToPosition,
-                })
-                applyCollision(result.collision)
-                setShowCollisionModal(true)
-              }
-              if (checkWin(result.position)) return
-              setTimeout(() => endPlayerTurn(), 1000)
-            })
-          }
+    setPowerUpModalConfig({
+      type: 'confirmation',
+      title: 'Teleport 🚀',
+      message: 'Pindah ke tangga terdekat di depanmu? Hanya bisa dipakai 1x.',
+      icon: '🚀',
+      confirmText: 'Teleport',
+      cancelText: 'Batal',
+      onConfirm: () => {
+        const result = teleportPlayer(currentPlayerId)
+        if (!result) {
+          setPowerUpModalConfig({
+            type: 'error',
+            title: 'Gagal',
+            message: 'Tidak ada tangga di depanmu!',
+            icon: '❌'
+          })
+          setShowPowerUpModal(true)
+          return
         }
-      ]
-    )
+        setTeleportUsed(true)
+        playLadderSound()
+
+        // Animate
+        const player = players.find(p => p.id === currentPlayerId)
+        animateMovement(currentPlayerId, player?.position || 1, result.position, 0, () => {
+          if (result.collision) {
+            // handle collision
+            setCollisionInfo({
+              bumpedPlayerName: result.collision.bumpedPlayerName,
+              fromPosition: result.collision.bumpedFromPosition,
+              toPosition: result.collision.bumpedToPosition,
+            })
+            applyCollision(result.collision)
+            setShowCollisionModal(true)
+          }
+          if (checkWin(result.position)) return
+          setTimeout(() => endPlayerTurn(), 1000)
+        })
+      }
+    })
+    setShowPowerUpModal(true)
   }
 
   useEffect(() => {
@@ -480,8 +519,24 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             // Only allowing activation if ready and not already stacked?
             // "delay 2 mins when USED". 
             if (shieldReady && shieldCharges === 0) handleActivateShield()
-            else if (!shieldReady && shieldCharges === 0) Alert.alert("Pendinginan", `Tunggu ${getCooldownText(shieldCooldownEnd)}`)
-            else if (shieldCharges > 0) Alert.alert("Aktif", `Sisa ${shieldCharges}x tahan ular`)
+            else if (!shieldReady && shieldCharges === 0) {
+              setPowerUpModalConfig({
+                type: 'info',
+                title: 'Pendinginan ❄️',
+                message: `Tunggu ${getCooldownText(shieldCooldownEnd)} lagi yaa!`,
+                icon: '⏳'
+              })
+              setShowPowerUpModal(true)
+            }
+            else if (shieldCharges > 0) {
+              setPowerUpModalConfig({
+                type: 'info',
+                title: 'Perisai Aktif 🛡️',
+                message: `Sisa ${shieldCharges}x tahan ular! Aman terkendali.`,
+                icon: '🛡️'
+              })
+              setShowPowerUpModal(true)
+            }
           }}
         >
           <Text style={styles.powerUpIcon}>🛡️</Text>
@@ -679,6 +734,18 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         playerName={winnerName}
         onPlayAgain={handlePlayAgain}
         onExit={handleExitGame}
+      />
+
+      <GenericModal
+        visible={showPowerUpModal}
+        type={powerUpModalConfig.type}
+        title={powerUpModalConfig.title}
+        message={powerUpModalConfig.message}
+        icon={powerUpModalConfig.icon}
+        confirmText={powerUpModalConfig.confirmText}
+        cancelText={powerUpModalConfig.cancelText}
+        onConfirm={powerUpModalConfig.onConfirm}
+        onClose={() => setShowPowerUpModal(false)}
       />
     </View>
   )
