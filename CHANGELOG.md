@@ -5,6 +5,64 @@ Semua perubahan penting pada project ini akan didokumentasikan di file ini.
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2025-01-01
+
+### 🎵 Enhanced Audio & Visual Experience Update
+
+### Added
+
+#### Custom Board Background
+- ✅ 🖼️ Menggunakan gambar `assets/board.png` sebagai background papan permainan
+- ✅ 🎯 Logic ular dan tangga disesuaikan dengan posisi di gambar custom
+- ✅ 🐍 Posisi ular yang benar: 99→83, 95→36, 62→19, 54→14, 17→6
+- ✅ 🪜 Posisi tangga yang benar: 3→22, 5→14, 9→31, 20→39, 27→84, 51→67, 72→91, 73→93, 88→99
+
+#### Enhanced Sound System
+- ✅ 🔔 Bell sound effect saat giliran player (`assets/bell-turn.mp3`)
+- ✅ 🐍 Snake sound effect saat kena ular (`assets/snake-sound.mp3`)
+- ✅ 🪜 Ladder sound effect saat kena tangga (`assets/ladder-sound.mp3`)
+- ✅ 🎵 Background music selama gameplay (`assets/game-sound.mp3`) dengan volume 45%
+- ✅ ⏸️ Auto pause/resume background music saat game pause/resume
+- ✅ 🛑 Auto stop background music saat game berakhir atau quit
+- ✅ 🏆 Winner celebration sound effect (`assets/winner.mp3`) dengan volume 80%
+
+#### Dice Button Enhancement
+- ✅ ✨ Blinking glassmorphism 3D effect saat giliran player
+- ✅ 💫 Glow animation dengan efek semi-transparan
+- ✅ 🎯 Text berubah menjadi "🎲 GILIRAN KAMU!" saat giliran player
+- ✅ 📱 Cross-platform glassmorphism (web: backdrop-filter, mobile: shadow)
+
+#### Splash Screen Improvements
+- ✅ 🖼️ Full screen splash screen tanpa background hijau
+- ✅ 📱 Menggunakan `resizeMode: "cover"` untuk memenuhi layar penuh
+- ✅ 🌐 Custom splash screen untuk web browser (React component)
+- ✅ 📱 Native splash screen untuk mobile (expo-splash-screen)
+
+#### App Icon Configuration
+- ✅ 🎯 Menggunakan `assets/game-icon.png` sebagai ikon aplikasi Android
+- ✅ 📱 Adaptive icon configuration untuk Android devices
+- ✅ 🎨 Background color hijau (#4CAF50) untuk adaptive icon
+
+### Changed
+- Board sekarang menggunakan gambar custom sebagai background
+- Logic ular dan tangga disesuaikan dengan posisi di gambar
+- Splash screen mode dari `contain` ke `cover` untuk full screen
+- Background color splash screen dari hijau ke putih
+- App version updated ke 1.6.0
+- Android app icon menggunakan `assets/game-icon.png`
+
+### Technical
+- Added `CUSTOM_BOARD_CONFIG` di `src/config/boardConfig.ts`
+- Updated semua game logic menggunakan `CUSTOM_BOARD_CONFIG` instead of `STANDARD_BOARD`
+- Added glassmorphism styles dengan `backdrop-filter` untuk web
+- Added game background music management functions
+- Added bell sound trigger saat `isMyTurn` berubah
+- Added snake/ladder sound effects di move processing
+- Added custom splash screen component untuk web compatibility
+- Added winner celebration sound effect saat game berakhir
+
+---
+
 ## [1.5.0] - 2024-12-31
 
 ### 🎨 Splash Screen Update
@@ -54,52 +112,6 @@ dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Updated `processMove()` untuk return collision info
 - Updated `endPlayerTurn()` untuk cek bonus roll sebelum ganti giliran
 - Added collision animation di GameEventModal
-
----
-
-## [1.4.0] - 2024-12-31
-
-### 🎲 Bonus Roll & Collision Update
-
-### Added
-
-#### Bonus Roll 6
-- ✅ 🎲 Jika pemain lempar dadu dapat angka 6, berhak lempar dadu 1x lagi
-- ✅ 🎯 Pemain bisa main 2x berturut-turut dengan bonus roll
-- ✅ 🏷️ Badge indikator "🎲 BONUS!" di header saat pemain punya bonus roll
-- ✅ 🎮 Bonus roll berlaku untuk mode lokal dan online
-
-#### Collision/Tabrakan
-- ✅ 💥 Jika pemain mendarat di kotak yang ditempati pemain lain, pemain lain mundur 2 kotak
-- ✅ 🎨 Modal tabrakan dengan background ungu dan animasi shake
-- ✅ 📢 Notifikasi "Player X menabrak Player Y! Player Y mundur 2 kotak"
-- ✅ 🎮 Collision berlaku untuk mode lokal dan online
-
-#### Leaderboard & Stats
-- ✅ 📊 Tabel `player_stats` untuk tracking statistik pemain
-- ✅ 🏆 View `leaderboard` untuk ranking pemain
-- ✅ 💾 Auto-save stats saat game selesai (mode lokal)
-- ✅ 📈 Tracking: total games, wins, losses, average moves
-- ✅ 🎯 Leaderboard screen fetch data real dari Supabase
-
-#### UI Improvements
-- ✅ 🏠 Tombol "Kembali" di winner modal untuk exit ke home
-- ✅ 🔄 Tombol "Main Lagi" di winner modal untuk restart game
-
-### Changed
-- Mode Lokal (vs Bot) sekarang save stats ke database (exclude bot)
-- Winner modal sekarang ada 2 tombol: Main Lagi & Kembali
-
-### Technical
-- Added `hasBonusRoll` state di gameStore
-- Added `lastCollision` state di gameStore
-- Added `checkCollision()` function di boardLogic
-- Added `applyCollision()` action di gameStore
-- Added collision modal type di GameEventModal
-- Added `player_stats` table dan `leaderboard` view
-- Added `update_player_stats()` function di database
-- Added `updatePlayerStatsSimple()` di databaseService
-- Migration files renamed dengan nomor urut dan nama deskriptif
 
 ---
 
@@ -302,8 +314,8 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 - [ ] Chat dalam game
 - [ ] Spectator mode
 - [ ] Tournament mode
-- [ ] Win/lose sound effects
-- [ ] Snake/ladder special sound effects
+- [ ] Power-ups dan special effects
+- [ ] Animated victory celebration
 
 ---
 
@@ -311,6 +323,7 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.6.0 | 2025-01-01 | Enhanced audio system, custom board, glassmorphism effects |
 | 1.5.0 | 2024-12-31 | Splash screen on app launch |
 | 1.4.0 | 2024-12-31 | Bonus roll 6, collision/tabrakan feature |
 | 1.3.0 | 2024-12-31 | Indonesian language localization |
@@ -328,4 +341,6 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 ## Links
 
 - [Supabase Setup Guide](docs/supabase-setup.md)
+- [Build APK Guide](docs/build-apk-guide.md)
+- [Vercel Deploy Guide](docs/vercel-deploy-guide.md)
 - [Project Spec](.kiro/specs/snake-ladder-game/)

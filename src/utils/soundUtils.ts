@@ -258,3 +258,24 @@ export const isGameBackgroundMusicPlaying = async (): Promise<boolean> => {
     return false
   }
 }
+
+/**
+ * Play winner sound effect when game ends with a winner
+ */
+export const playWinnerSound = async () => {
+  try {
+    const { sound } = await Audio.Sound.createAsync(
+      require('../../assets/sound/winner.mp3'),
+      { volume: 0.8 } // 80% volume for celebration
+    )
+    await sound.playAsync()
+    // Unload after playing
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        sound.unloadAsync()
+      }
+    })
+  } catch (error) {
+    console.log('Error playing winner sound:', error)
+  }
+}

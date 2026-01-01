@@ -21,7 +21,8 @@ import {
   playSnakeSound, 
   playLadderSound,
   startGameBackgroundMusic,
-  stopGameBackgroundMusic
+  stopGameBackgroundMusic,
+  playWinnerSound
 } from '../utils/soundUtils'
 
 interface OnlineGameScreenProps {
@@ -133,6 +134,7 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
       case 'game_ended':
         setGameStatus('finished')
         setWinner(update.data.winnerName)
+        playWinnerSound() // Play winner celebration sound for all players
         break
     }
   }, [])
@@ -212,6 +214,7 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
     // Check win
     if (checkWin(result.position)) {
       await multiplayerService.endGame(room.id, myPlayer.playerName)
+      playWinnerSound() // Play winner celebration sound
       setWinner(myPlayer.playerName)
       setShowWinnerModal(true)
       setGameStatus('finished')

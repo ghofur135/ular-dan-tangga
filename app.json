@@ -2,7 +2,7 @@
   "expo": {
     "name": "Snake & Ladder Game",
     "slug": "snake-ladder-game",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -25,8 +25,9 @@
       "bundleIdentifier": "com.snakeladder.game"
     },
     "android": {
+      "icon": "./assets/game-icon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/game-icon.png",
         "backgroundColor": "#4CAF50"
       },
       "edgeToEdgeEnabled": true,

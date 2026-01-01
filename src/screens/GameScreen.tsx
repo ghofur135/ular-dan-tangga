@@ -21,7 +21,8 @@ import {
   startGameBackgroundMusic,
   stopGameBackgroundMusic,
   pauseGameBackgroundMusic,
-  resumeGameBackgroundMusic
+  resumeGameBackgroundMusic,
+  playWinnerSound
 } from '../utils/soundUtils'
 import { CollisionEvent } from '../types/game'
 import { databaseService } from '../services/databaseService'
@@ -141,6 +142,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   useEffect(() => {
     if (gameStatus === 'finished' && winner) {
       stopGameBackgroundMusic() // Stop game music when game ends
+      playWinnerSound() // Play winner celebration sound
       setWinnerName(winner.name)
       setShowWinnerModal(true)
       

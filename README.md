@@ -13,12 +13,18 @@ Game ular tangga klasik yang dibangun dengan React Native + Expo. Mainkan melawa
 - **Single Player vs Bot** - Main melawan AI bot
 - **Multiplayer Online** - Main dengan teman via room code
 
-### 🎵 Sound Effects
+### 🎵 Sound Effects & Audio
 - 🎵 Welcome intro music (dengan toggle on/off)
 - 🖱️ Click sound untuk semua tombol
 - 🎲 Dice roll sound effect
 - 🚶 Move player sound effect
 - 🎮 Game start sound effect
+- 🔔 Bell sound saat giliran player (volume 80%)
+- 🐍 Snake sound effect saat kena ular (volume 90%)
+- 🪜 Ladder sound effect saat kena tangga (volume 90%)
+- 🎵 Background music selama gameplay (volume 45%)
+- ⏸️ Auto pause/resume music saat game pause/resume
+- 🏆 Winner celebration sound saat game berakhir (volume 80%)
 
 ### 🎨 Visual & Animation
 - 🎲 Dadu 3D dengan animasi rolling realistis
@@ -26,6 +32,11 @@ Game ular tangga klasik yang dibangun dengan React Native + Expo. Mainkan melawa
 - 🪜 SVG drawings untuk tangga
 - 📱 Responsive layout untuk mobile browser
 - ⏸️ Pause, resume, atau restart kapan saja
+- 🖼️ Custom board background dari `assets/board.png`
+- ✨ Blinking glassmorphism 3D effect pada tombol dadu saat giliran player
+- 💫 Glow animation dengan efek semi-transparan
+- 🎯 Text "🎲 GILIRAN KAMU!" saat giliran player
+- 🌟 Splash screen full layar saat pertama buka aplikasi
 
 ### 🌐 Multiplayer Features
 - 🔑 Room code system untuk invite teman
@@ -37,6 +48,8 @@ Game ular tangga klasik yang dibangun dengan React Native + Expo. Mainkan melawa
 
 Untuk build aplikasi menjadi file APK Android, ikuti panduan lengkap di:
 👉 **[Build APK Guide](docs/build-apk-guide.md)**
+
+**App Icon:** Menggunakan `assets/game-icon.png` sebagai ikon aplikasi Android
 
 **Quick Build:**
 ```bash
@@ -112,14 +125,37 @@ npx expo start --android
    - 🪜 Kena bawah tangga = naik ke atas
 5. **Win** - Pemain pertama yang sampai kotak 100 menang!
 
+### 🎲 Enhanced Dice Experience
+- ✨ **Glassmorphism Effect**: Tombol dadu berubah menjadi blinking glass 3D saat giliran player
+- 🔔 **Turn Bell**: Bell sound otomatis saat giliran player dimulai
+- 💫 **Visual Feedback**: Glow animation dan text "🎲 GILIRAN KAMU!" 
+- 🎵 **Audio Feedback**: Snake/ladder sound effects saat kena kotak khusus
+- 🏆 **Winner Celebration**: Winner sound effect saat game berakhir
+
 ## 🎵 Sound Files
 
 Letakkan file audio di folder `assets/sound/`:
-- `welcome-intro.mp3` - Background music di home
+
+### Background Music
+- `welcome-intro.mp3` - Background music di home screen
+- `game-sound.mp3` - Background music selama gameplay (volume 45%)
+
+### Sound Effects
 - `click.mp3` - Button click sound
 - `dice-roll.mp3` - Dice rolling sound
 - `move-player.mp3` - Token movement sound
 - `game-start.mp3` - Game start sound
+- `bell-turn.mp3` - Bell sound saat giliran player (volume 80%)
+- `snake-sound.mp3` - Sound effect saat kena ular (volume 90%)
+- `ladder-sound.mp3` - Sound effect saat kena tangga (volume 90%)
+- `winner.mp3` - Winner celebration sound (volume 80%)
+
+### Audio Features
+- 🔊 Toggle musik on/off di home screen
+- ⏸️ Auto pause/resume background music saat game pause/resume
+- 🛑 Auto stop background music saat game berakhir atau quit
+- 🎵 Looping background music dengan volume yang disesuaikan
+- 🔔 Bell notification saat giliran player dimulai
 
 ## 🏗️ Project Structure
 
@@ -151,16 +187,25 @@ SnakeLadderGame/
 │   ├── types/            # TypeScript Types
 │   │   └── game.ts
 │   ├── config/           # Configuration
-│   │   └── supabase.ts
+│   │   ├── supabase.ts
+│   │   └── boardConfig.ts    # Custom board snake/ladder positions
 │   └── navigation/       # Navigation
 │       └── GameNavigator.tsx
 ├── assets/
-│   └── sound/            # Audio files
-│       ├── welcome-intro.mp3
-│       ├── click.mp3
-│       ├── dice-roll.mp3
-│       ├── move-player.mp3
-│       └── game-start.mp3
+│   ├── sound/            # Audio files
+│   │   ├── welcome-intro.mp3    # Home background music
+│   │   ├── game-sound.mp3       # Gameplay background music
+│   │   ├── click.mp3            # Button click sound
+│   │   ├── dice-roll.mp3        # Dice rolling sound
+│   │   ├── move-player.mp3      # Token movement sound
+│   │   ├── game-start.mp3       # Game start sound
+│   │   ├── bell-turn.mp3        # Player turn bell
+│   │   ├── snake-sound.mp3      # Snake encounter sound
+│   │   ├── ladder-sound.mp3     # Ladder encounter sound
+│   │   └── winner.mp3           # Winner celebration sound
+│   ├── board.png         # Custom board background
+│   ├── splash.png        # Splash screen image
+│   └── avatars/          # Player avatar images
 ├── supabase/             # Database Schema
 │   ├── schema.sql
 │   ├── migration-v2.sql
@@ -187,37 +232,41 @@ Untuk fitur multiplayer online, ikuti panduan di `docs/supabase-setup.md`.
 
 ## 🎨 Game Board
 
+### Custom Board Background
+Game menggunakan gambar custom `assets/board.png` sebagai background papan permainan dengan:
+- 🖼️ ImageBackground component untuk menampilkan gambar board
+- 🎯 Transparent overlay untuk positioning pemain
+- 🐍🪜 Posisi ular dan tangga disesuaikan dengan gambar custom
+
 Board menggunakan layout snake pattern klasik:
 - 10x10 grid (100 kotak)
 - Nomor dimulai dari kiri bawah (1) ke kanan atas (100)
 - Baris ganjil: kiri → kanan
 - Baris genap: kanan → kiri
 
-### Default Snakes & Ladders
+### Default Snakes & Ladders (Custom Board)
 
 **Snakes (🐍):**
 | Head | Tail |
 |------|------|
-| 98 | 78 |
-| 95 | 75 |
-| 93 | 73 |
-| 87 | 24 |
-| 64 | 60 |
+| 99 | 83 |
+| 95 | 36 |
 | 62 | 19 |
-| 54 | 34 |
-| 17 | 7 |
+| 54 | 14 |
+| 17 | 6 |
 
 **Ladders (🪜):**
 | Bottom | Top |
 |--------|-----|
-| 1 | 38 |
-| 4 | 14 |
+| 3 | 22 |
+| 5 | 14 |
 | 9 | 31 |
-| 21 | 42 |
-| 28 | 84 |
+| 20 | 39 |
+| 27 | 84 |
 | 51 | 67 |
 | 72 | 91 |
-| 80 | 99 |
+| 73 | 93 |
+| 88 | 99 |
 
 ## 🛠️ Tech Stack
 

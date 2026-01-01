@@ -18,7 +18,25 @@ Jika belum punya account, daftar di [expo.dev](https://expo.dev)
 
 ---
 
-## Metode 1: Build dengan EAS (Recommended)
+## Konfigurasi App Icon
+
+Aplikasi menggunakan `assets/game-icon.png` sebagai ikon Android. Konfigurasi di `app.json`:
+
+```json
+{
+  "expo": {
+    "android": {
+      "icon": "./assets/game-icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/game-icon.png",
+        "backgroundColor": "#4CAF50"
+      }
+    }
+  }
+}
+```
+
+---
 
 ### Step 1: Konfigurasi EAS Build
 
@@ -319,9 +337,9 @@ Update version di `app.json`:
 ```json
 {
   "expo": {
-    "version": "1.4.0",
+    "version": "1.6.0",
     "android": {
-      "versionCode": 5
+      "versionCode": 6
     }
   }
 }
