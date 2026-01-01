@@ -430,9 +430,15 @@ class MultiplayerService {
         new_position: newPos,
         dice_roll: diceRoll,
         move_type: moveType,
+        user_id: null, // For anonymous multiplayer
       })
 
-      return !error
+      if (error) {
+        console.error('Error recording move:', error)
+        return false
+      }
+
+      return true
     } catch (error) {
       console.error('Error recording move:', error)
       return false
