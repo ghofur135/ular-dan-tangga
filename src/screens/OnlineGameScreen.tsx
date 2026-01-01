@@ -17,9 +17,9 @@ import { multiplayerService, OnlineRoom, OnlinePlayer, GameUpdate } from '../ser
 import { calculateNewPosition, checkWin } from '../utils/boardLogic'
 import { Player } from '../types/game'
 import { CUSTOM_BOARD_CONFIG } from '../config/boardConfig'
-import { 
-  playGameStartSound, 
-  playSnakeSound, 
+import {
+  playGameStartSound,
+  playSnakeSound,
   playLadderSound,
   startGameBackgroundMusic,
   stopGameBackgroundMusic,
@@ -54,6 +54,7 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
   const [showLadderModal, setShowLadderModal] = useState(false)
   const [showBounceModal, setShowBounceModal] = useState(false)
   const [showWinnerModal, setShowWinnerModal] = useState(false)
+  const [showLeaveModal, setShowLeaveModal] = useState(false)
 
   // Subscribe to room updates
   // Cleanup game background music when component unmounts
@@ -292,23 +293,14 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
   }
 
   const handleLeaveRoom = () => {
-    const alertTitle = isHost ? 'Akhiri Permainan' : 'Keluar Room'
-    const alertMessage = isHost 
-      ? 'Sebagai host, jika kamu keluar maka permainan akan berakhir untuk semua pemain. Yakin?'
-      : 'Yakin mau keluar dari room ini?'
-    
-    Alert.alert(alertTitle, alertMessage, [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: isHost ? 'Akhiri Game' : 'Keluar',
-        style: 'destructive',
-        onPress: async () => {
-          await multiplayerService.leaveRoom(myPlayer.id, room.id)
-          multiplayerService.unsubscribe()
-          navigation.goBack()
-        },
-      },
-    ])
+    setShowLeaveModal(true)
+  }
+
+  const confirmLeaveRoom = async () => {
+    setShowLeaveModal(false)
+    await multiplayerService.leaveRoom(myPlayer.id, room.id)
+    multiplayerService.unsubscribe()
+    navigation.goBack()
   }
 
   // Convert OnlinePlayer to Player for components
@@ -376,8 +368,8 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
           </View>
         ) : (
           <>
-            <DiceRoller 
-              onRoll={handleDiceRoll} 
+            <DiceRoller
+              onRoll={handleDiceRoll}
               isDisabled={!isMyTurn() || isAnimating}
               isMyTurn={isMyTurn() && !isAnimating}
             />
@@ -448,6 +440,41 @@ export default function OnlineGameScreen({ navigation, route }: OnlineGameScreen
         type="winner"
         playerName={winner || ''}
       />
+      {/* Leave Confirmation Modal */}
+      <Modal visible={showLeaveModal} transparent animationType="fade">
+        <View style={styles.winnerOverlay}>
+          <View style={styles.winnerContent}>
+            <Text style={styles.winnerEmoji}>🚪</Text>
+            <Text style={styles.winnerTitle}>
+              {isHost ? 'Akhiri Permainan?' : 'Keluar Room?'}
+            </Text>
+            <Text style={styles.waitTurnText}>
+              {isHost
+                ? 'Jika host keluar, room akan dihapus dan permainan berakhir untuk semua.'
+                : 'Yakin mau keluar dari permainan ini?'}
+            </Text>
+
+            <View style={styles.modalButtonRow}>
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                onPress={() => setShowLeaveModal(false)}
+              >
+                <Text style={styles.modalBtnTextAux}>Batal</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnDestructive]}
+                onPress={confirmLeaveRoom}
+              >
+                <Text style={styles.modalBtnTextWhite}>
+                  {isHost ? 'Akhiri Game' : 'Keluar'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   )
 }
@@ -649,5 +676,34 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+    width: '100%',
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnCancel: {
+    backgroundColor: '#F3F4F6',
+  },
+  modalBtnDestructive: {
+    backgroundColor: '#E53935',
+  },
+  modalBtnTextAux: {
+    color: '#4B5563',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalBtnTextWhite: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 })

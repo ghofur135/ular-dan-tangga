@@ -1,12 +1,40 @@
+import React, { useState, useEffect } from 'react'
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
+  Modal,
+} from 'react-native'
+import { multiplayerService, OnlineRoom } from '../services/multiplayerService'
+import { AVATAR_COLORS } from '../types/game'
+import AvatarPicker from '../components/AvatarPicker'
 import { useGameStore } from '../store/gameStore'
 
-// ... (inside component)
+interface LobbyScreenProps {
+  navigation: any
+}
+
 export default function LobbyScreen({ navigation }: LobbyScreenProps) {
   const { currentUser, user, isAuthenticated } = useGameStore()
   const [playerName, setPlayerName] = useState('')
   const [selectedAvatar, setSelectedAvatar] = useState(1)
+  const [rooms, setRooms] = useState<OnlineRoom[]>([])
+  const [loading, setLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [showJoinModal, setShowJoinModal] = useState(false)
+  const [roomCode, setRoomCode] = useState('')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [newRoomName, setNewRoomName] = useState('')
 
-  // ... (other state)
+  useEffect(() => {
+    loadRooms()
+  }, [])
 
   // Auto-fill from store
   useEffect(() => {
@@ -18,9 +46,130 @@ export default function LobbyScreen({ navigation }: LobbyScreenProps) {
     }
   }, [currentUser, user])
 
-  // ... (loadRooms effect)
+  const loadRooms = async () => {
+    setLoading(true)
+    // Cleanup finished and empty rooms first
+    await multiplayerService.cleanupFinishedRooms()
+    // Then load available rooms
+    const availableRooms = await multiplayerService.getAvailableRooms()
+    setRooms(availableRooms)
+    setLoading(false)
+  }
 
-  // ... (rest of code)
+  const onRefresh = async () => {
+    setRefreshing(true)
+    await loadRooms()
+    setRefreshing(false)
+  }
+
+  // Get color based on avatar
+  const getAvatarColor = (avatar: number) => {
+    return AVATAR_COLORS[avatar] || AVATAR_COLORS[1]
+  }
+
+  const handleCreateRoom = async () => {
+    if (!playerName.trim()) {
+      Alert.alert('Error', 'Masukkan nama kamu dulu')
+      return
+    }
+    if (!newRoomName.trim()) {
+      Alert.alert('Error', 'Masukkan nama room')
+      return
+    }
+
+    setLoading(true)
+    const result = await multiplayerService.createRoom(
+      newRoomName.trim(),
+      playerName.trim(),
+      getAvatarColor(selectedAvatar),
+      selectedAvatar
+    )
+    setLoading(false)
+
+    if (result) {
+      setShowCreateModal(false)
+      navigation.navigate('OnlineGame', {
+        room: result.room,
+        player: result.player,
+        isHost: true,
+      })
+    } else {
+      Alert.alert('Error', 'Gagal membuat room. Coba lagi.')
+    }
+  }
+
+  const handleJoinByCode = async () => {
+    if (!playerName.trim()) {
+      Alert.alert('Error', 'Masukkan nama kamu dulu')
+      return
+    }
+    if (!roomCode.trim()) {
+      Alert.alert('Error', 'Masukkan kode room')
+      return
+    }
+
+    // Check if avatar is taken in the room
+    const takenAvatars = await multiplayerService.getTakenAvatarsInRoom(roomCode.trim().toUpperCase())
+    if (takenAvatars.includes(selectedAvatar)) {
+      Alert.alert('Avatar Sudah Dipakai', 'Pilih avatar lain yang belum dipakai pemain lain')
+      return
+    }
+
+    setLoading(true)
+    const result = await multiplayerService.joinRoom(
+      roomCode.trim().toUpperCase(),
+      playerName.trim(),
+      getAvatarColor(selectedAvatar),
+      selectedAvatar
+    )
+    setLoading(false)
+
+    if (result) {
+      setShowJoinModal(false)
+      navigation.navigate('OnlineGame', {
+        room: result.room,
+        player: result.player,
+        players: result.players,
+        isHost: false,
+      })
+    } else {
+      Alert.alert('Error', 'Room tidak ditemukan atau sudah penuh')
+    }
+  }
+
+  const handleJoinRoom = async (room: OnlineRoom) => {
+    if (!playerName.trim()) {
+      Alert.alert('Error', 'Masukkan nama kamu dulu')
+      return
+    }
+
+    // Check if avatar is taken in the room
+    const takenAvatars = await multiplayerService.getTakenAvatarsInRoom(room.roomCode)
+    if (takenAvatars.includes(selectedAvatar)) {
+      Alert.alert('Avatar Sudah Dipakai', 'Pilih avatar lain yang belum dipakai pemain lain')
+      return
+    }
+
+    setLoading(true)
+    const result = await multiplayerService.joinRoom(
+      room.roomCode,
+      playerName.trim(),
+      getAvatarColor(selectedAvatar),
+      selectedAvatar
+    )
+    setLoading(false)
+
+    if (result) {
+      navigation.navigate('OnlineGame', {
+        room: result.room,
+        player: result.player,
+        players: result.players,
+        isHost: false,
+      })
+    } else {
+      Alert.alert('Error', 'Gagal join room. Mungkin sudah penuh atau avatar sudah dipakai.')
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -364,5 +513,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  inputDisabled: {
+    backgroundColor: '#ebebeb',
+    color: '#999',
   },
 })
