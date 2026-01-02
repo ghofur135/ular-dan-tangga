@@ -395,13 +395,36 @@ export default function GameScreen({ navigation }: GameScreenProps) {
 
   useEffect(() => {
     if (gameStatus !== 'playing' || isPaused || isAnimating) return
-    const currentPlayer = players[currentPlayerIndex]
+
+    // Get fresh state
+    const state = useGameStore.getState()
+    const currentPlayer = state.players[state.currentPlayerIndex]
+
     if (!currentPlayer) return
-    if (currentPlayer.id.startsWith('bot-')) {
-      const botTimer = setTimeout(() => handleBotTurn(currentPlayer.id), 1500)
+
+    // Verify it's actually the bot's turn
+    if (currentPlayer.id.startsWith('bot-') && currentPlayer.isCurrentTurn) {
+      // 1. Check if we're already processing this bot to avoid duplicates
+      if (processingBotId.current === currentPlayer.id) return
+      
+      const botTimer = setTimeout(() => {
+        // 2. Re-check state inside timeout before execution
+        const currentState = useGameStore.getState()
+        const currentNow = currentState.players[currentState.currentPlayerIndex]
+        
+        if (
+          currentState.gameStatus === 'playing' && 
+          !currentState.isPaused && 
+          !currentState.isAnimating &&
+          currentNow?.id === currentPlayer.id
+        ) {
+          handleBotTurn(currentPlayer.id)
+        }
+      }, 1500)
+
       return () => clearTimeout(botTimer)
     }
-  }, [currentPlayerIndex, gameStatus, players, isPaused, isAnimating])
+  }, [currentPlayerIndex, gameStatus, isPaused, isAnimating, players])
 
   const handleBotTurn = (botId: string) => {
     // Prevent double processing
