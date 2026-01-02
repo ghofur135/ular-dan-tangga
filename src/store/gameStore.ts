@@ -433,10 +433,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get()
     if (state.gameStatus !== 'playing') return
 
-    // Clear any existing bonus roll state and advance to next player
+    // If player has bonus roll (rolled a 6), don't advance to next player
     if (state.hasBonusRoll) {
+      // Just clear the bonus roll flag but keep the same player's turn
       set({ hasBonusRoll: false })
-      // Don't return here - still advance to next player to prevent loops
+      return // Don't advance to next player - same player rolls again
     }
 
     const nextIndex = getNextPlayer(state.currentPlayerIndex, state.players.length)
