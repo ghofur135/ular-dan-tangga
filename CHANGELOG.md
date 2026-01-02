@@ -6,6 +6,15 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.1.0] - 2026-01-02
+
+### 📱 Android Splash Screen Fix
+
+### Fixed
+- ✅ 🖼️ **Full Screen Splash**: Memperbaiki masalah splash screen yang kecil di status bar pada Android 12+. Sekarang menggunakan implementasi custom untuk tampilan *full immersive*.
+
+---
+
 ## [2.0.0] - 2026-01-02
 
 ### 🔐 Persistent Auth & Critical Bot Fixes
