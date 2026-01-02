@@ -6,6 +6,27 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.2.1] - 2026-01-02
+
+### 🐛 Critical Bot Fix - Continuous Dice Rolling
+
+### Fixed
+- ✅ 🤖 **Bot Infinite Rolling Bug**: Memperbaiki bug kritis di mana bot terus-menerus melempar dadu setelah permainan kedua dimulai
+- ✅ 🔄 **Stale Closure Fix**: Menambahkan `handleBotTurn` ke dependency array useEffect dan menggunakan `useCallback` untuk mencegah stale closure
+- ✅ 🛡️ **Enhanced Bot Safety Checks**: Menambahkan multiple safety checks untuk memastikan bot hanya bergerak saat kondisi yang tepat
+- ✅ 🎮 **Game Reset Improvements**: Memperbaiki `handlePlayAgain` untuk reset semua bot-related state secara eksplisit
+- ✅ ⚡ **Bonus Roll Loop Fix**: Memperbaiki logika `endPlayerTurn` untuk mencegah loop bonus roll yang menyebabkan bot stuck
+- ✅ 🔒 **Race Condition Prevention**: Menambahkan additional checks untuk mencegah race condition saat game state berubah
+
+### Technical Details
+- Added `useCallback` untuk `handleBotTurn` dengan proper dependency array
+- Enhanced `processingBotId.current` management untuk prevent double processing
+- Improved game state validation sebelum bot processing move
+- Fixed bonus roll logic di gameStore untuk selalu advance ke player berikutnya
+- Added comprehensive bot state reset di `handlePlayAgain` function
+
+---
+
 ## [2.2.0] - 2026-01-02
 
 ### ⚖️ Game Balance & Power Up Rules
@@ -461,6 +482,10 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.2.1 | 2026-01-02 | Critical Bot Fix - Continuous Dice Rolling Bug |
+| 2.2.0 | 2026-01-02 | Game Balance & Power Up Rules (Zone Restrictions) |
+| 2.1.0 | 2026-01-02 | Android Splash Screen Fix |
+| 2.0.0 | 2026-01-02 | Persistent Auth & Critical Bot Fixes |
 | 1.9.0 | 2026-01-02 | Bug Fixes (Bot Duplicate), Generic Modal, Web Powerups Support |
 | 1.8.0 | 2026-01-01 | Dynamic Board Themes & VS Bot Power Ups (Shield, Custom Dice, Teleport) |
 | 1.7.0 | 2026-01-01 | Modern UI Redesign, Auth Integration, Stats Tracking |

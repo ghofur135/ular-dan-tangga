@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import {
   View,
   Text,
@@ -418,17 +418,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     setShowPowerUpModal(true)
   }
 
-  useEffect(() => {
-    if (gameStatus !== 'playing' || isPaused || isAnimating) return
-    const currentPlayer = players[currentPlayerIndex]
-    if (!currentPlayer) return
-    if (currentPlayer.id.startsWith('bot-')) {
-      const botTimer = setTimeout(() => handleBotTurn(currentPlayer.id), 1500)
-      return () => clearTimeout(botTimer)
-    }
-  }, [currentPlayerIndex, gameStatus, players, isPaused, isAnimating])
-
-  const handleBotTurn = (botId: string) => {
+  const handleBotTurn = useCallback((botId: string) => {
     // Prevent double processing
     if (processingBotId.current === botId) return
     
@@ -436,6 +426,9 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     if (state.gameStatus !== 'playing' || state.isPaused || state.isAnimating) return
     const botPlayer = state.players[state.currentPlayerIndex]
     if (!botPlayer || botPlayer.id !== botId) return
+    
+    // Additional safety check: ensure this is still the current player's turn
+    if (state.currentPlayerIndex !== state.players.findIndex(p => p.id === botId)) return
     
     // Lock this bot turn
     processingBotId.current = botId
@@ -447,6 +440,14 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     setShowBotDiceModal(true)
     setTimeout(() => {
       setShowBotDiceModal(false)
+      
+      // Double-check game state before processing move
+      const currentState = useGameStore.getState()
+      if (currentState.gameStatus !== 'playing' || currentState.isPaused || currentState.isAnimating) {
+        processingBotId.current = null
+        return
+      }
+      
       const moveResult = processMove(botId, botResult)
       
       if (moveResult) {
@@ -482,7 +483,17 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         processingBotId.current = null
       }
     }, 1500)
-  }
+  }, [processMove, animateMovement, applyCollision, endPlayerTurn, playSnakeSound, playLadderSound, checkWin])
+
+  useEffect(() => {
+    if (gameStatus !== 'playing' || isPaused || isAnimating) return
+    const currentPlayer = players[currentPlayerIndex]
+    if (!currentPlayer) return
+    if (currentPlayer.id.startsWith('bot-')) {
+      const botTimer = setTimeout(() => handleBotTurn(currentPlayer.id), 1500)
+      return () => clearTimeout(botTimer)
+    }
+  }, [currentPlayerIndex, gameStatus, players, isPaused, isAnimating, handleBotTurn])
 
   const handlePauseGame = () => {
     pauseGameBackgroundMusic() // Pause game music
@@ -509,18 +520,37 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   const handlePlayAgain = () => {
     setShowWinModal(false)
     setShowWinnerModal(false)
+    
+    // Reset all bot-related state
+    processingBotId.current = null
+    setShowBotDiceModal(false)
+    setBotDiceResult(1)
+    setBotName('')
+    
     // Reset powerups
     setShieldCharges(0)
     setShieldCooldownEnd(0)
     setCustomDiceCooldownEnd(0)
     setTeleportUsed(false)
 
+    // Reset game state with explicit clearing of all relevant fields
     useGameStore.setState((state) => ({
-      players: state.players.map((p, i) => ({ ...p, position: 1, isCurrentTurn: i === 0, diceResult: undefined })),
-      currentPlayerIndex: 0, gameStatus: 'playing', winner: null, moveHistory: [], hasBonusRoll: false, lastCollision: null,
-      isAnimating: false, animatingPlayerId: null,
+      players: state.players.map((p, i) => ({ 
+        ...p, 
+        position: 1, 
+        isCurrentTurn: i === 0, 
+        diceResult: undefined 
+      })),
+      currentPlayerIndex: 0, 
+      gameStatus: 'playing', 
+      winner: null, 
+      moveHistory: [], 
+      hasBonusRoll: false, 
+      lastCollision: null,
+      isAnimating: false, 
+      animatingPlayerId: null,
+      isPaused: false
     }))
-    processingBotId.current = null
   }
   const handleExitGame = () => { setShowWinModal(false); setShowWinnerModal(false); resetGame(); navigation.navigate('Home') }
 

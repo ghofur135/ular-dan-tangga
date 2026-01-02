@@ -433,9 +433,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get()
     if (state.gameStatus !== 'playing') return
 
+    // Clear any existing bonus roll state and advance to next player
     if (state.hasBonusRoll) {
       set({ hasBonusRoll: false })
-      return
+      // Don't return here - still advance to next player to prevent loops
     }
 
     const nextIndex = getNextPlayer(state.currentPlayerIndex, state.players.length)
