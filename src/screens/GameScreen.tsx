@@ -108,6 +108,8 @@ export default function GameScreen({ navigation }: GameScreenProps) {
 
   const [showCustomDiceModal, setShowCustomDiceModal] = useState(false)
   const processingBotId = useRef<string | null>(null)
+  const gameSessionId = useRef<number>(0) // Track game session to prevent stale callbacks
+  const botRollCount = useRef<number>(0) // Safety counter to prevent infinite loops
 
   // PowerUp Confirmation/Info Modal
   const [showPowerUpModal, setShowPowerUpModal] = useState(false)
@@ -209,12 +211,33 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   }, [])
 
   // Function to handle bot turn (can be called recursively for bonus roll)
-  const executeBotTurn = (botPlayerId: string) => {
+  const executeBotTurn = (botPlayerId: string, sessionId: number) => {
+    // SAFETY CHECK: Abort if session changed (game was reset)
+    if (sessionId !== gameSessionId.current) {
+      processingBotId.current = null
+      return
+    }
+    
+    // SAFETY CHECK: Prevent infinite loops - max 10 rolls per turn sequence
+    botRollCount.current += 1
+    if (botRollCount.current > 10) {
+      console.warn('Bot roll count exceeded limit, aborting')
+      processingBotId.current = null
+      botRollCount.current = 0
+      return
+    }
+    
     const state = useGameStore.getState()
-    if (state.gameStatus !== 'playing' || state.isPaused || state.isAnimating) return
+    if (state.gameStatus !== 'playing' || state.isPaused || state.isAnimating) {
+      processingBotId.current = null
+      return
+    }
     
     const botPlayer = state.players.find(p => p.id === botPlayerId)
-    if (!botPlayer || !botPlayer.id.startsWith('bot-')) return
+    if (!botPlayer || !botPlayer.id.startsWith('bot-')) {
+      processingBotId.current = null
+      return
+    }
     
     // Roll dice for bot
     const diceResult = Math.floor(Math.random() * 6) + 1
@@ -224,9 +247,21 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     
     // Process bot move after showing dice
     setTimeout(() => {
+      // SAFETY CHECK: Abort if session changed
+      if (sessionId !== gameSessionId.current) {
+        processingBotId.current = null
+        setShowBotDiceModal(false)
+        return
+      }
+      
       setShowBotDiceModal(false)
       
       const latestState = useGameStore.getState()
+      if (latestState.gameStatus !== 'playing') {
+        processingBotId.current = null
+        return
+      }
+      
       const latestBot = latestState.players.find(p => p.id === botPlayerId)
       if (!latestBot) {
         processingBotId.current = null
@@ -241,6 +276,13 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         
         // Animate bot movement
         const animateBot = async () => {
+          // SAFETY CHECK: Abort if session changed
+          if (sessionId !== gameSessionId.current) {
+            setAnimating(false, null)
+            processingBotId.current = null
+            return
+          }
+          
           const steps: number[] = []
           let currentPos = startPosition
           
@@ -250,6 +292,11 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           }
           
           for (let i = 0; i < steps.length; i++) {
+            if (sessionId !== gameSessionId.current) {
+              setAnimating(false, null)
+              processingBotId.current = null
+              return
+            }
             setAnimationPosition(steps[i])
             await new Promise(resolve => setTimeout(resolve, 200))
           }
@@ -284,12 +331,19 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           // Check win
           if (checkWin(moveResult.position)) {
             processingBotId.current = null
+            botRollCount.current = 0
             return
           }
           
           // End turn after delay
           const delay = moveResult.collision ? 2500 : (moveResult.moveType !== 'normal' ? 2000 : 500)
           setTimeout(() => {
+            // SAFETY CHECK: Abort if session changed
+            if (sessionId !== gameSessionId.current) {
+              processingBotId.current = null
+              return
+            }
+            
             // Check if bot got bonus roll (rolled 6)
             const stateBeforeEnd = useGameStore.getState()
             const hadBonusRoll = stateBeforeEnd.hasBonusRoll
@@ -299,10 +353,11 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             // If bot had bonus roll, execute another turn after delay
             if (hadBonusRoll) {
               setTimeout(() => {
-                executeBotTurn(botPlayerId)
+                executeBotTurn(botPlayerId, sessionId)
               }, 1000)
             } else {
               processingBotId.current = null
+              botRollCount.current = 0 // Reset counter when turn ends normally
             }
           }, delay)
         }
@@ -326,7 +381,13 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     // Prevent double processing
     if (processingBotId.current === currentBot.id) return
     
+    // Capture current session ID
+    const currentSessionId = gameSessionId.current
+    
     const botTimer = setTimeout(() => {
+      // SAFETY CHECK: Abort if session changed (game was reset)
+      if (currentSessionId !== gameSessionId.current) return
+      
       // Re-check state inside timeout to avoid stale closure
       const state = useGameStore.getState()
       if (state.gameStatus !== 'playing' || state.isPaused || state.isAnimating) return
@@ -337,8 +398,9 @@ export default function GameScreen({ navigation }: GameScreenProps) {
       // Double check we're not already processing this bot
       if (processingBotId.current === botPlayer.id) return
       processingBotId.current = botPlayer.id
+      botRollCount.current = 0 // Reset roll counter for new turn
       
-      executeBotTurn(botPlayer.id)
+      executeBotTurn(botPlayer.id, currentSessionId)
     }, 1000)
     
     return () => clearTimeout(botTimer)
@@ -577,8 +639,10 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     setShowWinModal(false)
     setShowWinnerModal(false)
     
-    // Reset all bot-related state
+    // Reset all bot-related state - CRITICAL for preventing infinite loop
     processingBotId.current = null
+    gameSessionId.current += 1 // Increment session to invalidate any pending callbacks
+    botRollCount.current = 0 // Reset roll counter
     setShowBotDiceModal(false)
     setBotDiceResult(1)
     setBotName('')
