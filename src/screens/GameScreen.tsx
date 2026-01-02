@@ -427,9 +427,6 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     const botPlayer = state.players[state.currentPlayerIndex]
     if (!botPlayer || botPlayer.id !== botId) return
     
-    // Additional safety check: ensure this is still the current player's turn
-    if (state.currentPlayerIndex !== state.players.findIndex(p => p.id === botId)) return
-    
     // Lock this bot turn
     processingBotId.current = botId
     
