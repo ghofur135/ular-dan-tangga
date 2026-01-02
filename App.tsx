@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { View, Image, StyleSheet, Animated, Platform } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -6,20 +6,46 @@ import { NavigationContainer } from '@react-navigation/native'
 import * as SplashScreen from 'expo-splash-screen'
 import GameNavigator from './src/navigation/GameNavigator'
 
-// Keep the splash screen visible while we fetch resources (only works on native)
-if (Platform.OS !== 'web') {
-  SplashScreen.preventAutoHideAsync()
-}
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* reloading the app might trigger some race conditions, ignore them */
+})
 
 /**
- * Custom Splash Screen Component for Web
+ * Custom Splash Screen Component
+ * Renders a full-screen image to replace the native splash screen
+ * ensuring consistent look across Android 12+, iOS, and Web.
  */
-function CustomSplashScreen({ onFinish }: { onFinish: () => void }) {
-  const [fadeAnim] = useState(new Animated.Value(1))
+function CustomSplashScreen({
+  isAppReady,
+  onFinish,
+}: {
+  isAppReady: boolean
+  onFinish: () => void
+}) {
+  const fadeAnim = useRef(new Animated.Value(1)).current
+  const [isAnimationStarted, setIsAnimationStarted] = useState(false)
 
   useEffect(() => {
-    // Wait 2 seconds then fade out
-    const timer = setTimeout(() => {
+    // Hide the native splash screen as soon as this component mounts
+    // This allows our full-screen image to take over immediately
+    async function hideNativeSplash() {
+      try {
+        await SplashScreen.hideAsync()
+      } catch (e) {
+        // ignore
+      }
+    }
+    hideNativeSplash()
+  }, [])
+
+  useEffect(() => {
+    // Once app is ready, start the fade out animation
+    if (isAppReady && !isAnimationStarted) {
+      setIsAnimationStarted(true)
+      // Minimum display time check could go here if needed,
+      // but 'isAppReady' usually includes our artificial delay.
+      
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 500,
@@ -27,10 +53,8 @@ function CustomSplashScreen({ onFinish }: { onFinish: () => void }) {
       }).start(() => {
         onFinish()
       })
-    }, 2000)
-
-    return () => clearTimeout(timer)
-  }, [])
+    }
+  }, [isAppReady])
 
   return (
     <Animated.View style={[styles.splashContainer, { opacity: fadeAnim }]}>
@@ -67,24 +91,19 @@ export default function App() {
     prepare()
   }, [])
 
-  const onLayoutRootView = useCallback(async () => {
-    if (appIsReady && Platform.OS !== 'web') {
-      // Hide native splash screen (only on mobile)
-      await SplashScreen.hideAsync()
-    }
-  }, [appIsReady])
-
-  // Show custom splash screen on web, or while app is loading
-  if (!appIsReady || (showSplash && Platform.OS === 'web')) {
-    if (Platform.OS === 'web' && appIsReady) {
-      return <CustomSplashScreen onFinish={() => setShowSplash(false)} />
-    }
-    return null
+  // While splash is showing, render the custom splash screen
+  if (showSplash) {
+    return (
+      <CustomSplashScreen
+        isAppReady={appIsReady}
+        onFinish={() => setShowSplash(false)}
+      />
+    )
   }
 
   return (
     <SafeAreaProvider>
-      <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+      <View style={{ flex: 1 }}>
         <NavigationContainer>
           <StatusBar style="auto" />
           <GameNavigator />
