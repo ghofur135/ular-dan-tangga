@@ -419,7 +419,9 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   }
 
   const handleBotTurn = useCallback((botId: string) => {
+    console.log('=== handleBotTurn START ===')
     console.log('handleBotTurn called with botId:', botId)
+    console.log('processingBotId.current:', processingBotId.current)
     
     // Prevent double processing
     if (processingBotId.current === botId) {
@@ -428,49 +430,66 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     }
     
     const state = useGameStore.getState()
-    console.log('Bot turn state check:', {
+    console.log('Current game state:', {
       gameStatus: state.gameStatus,
       isPaused: state.isPaused,
       isAnimating: state.isAnimating,
       currentPlayerIndex: state.currentPlayerIndex,
-      botPlayer: state.players[state.currentPlayerIndex]
+      playersCount: state.players.length
     })
     
-    if (state.gameStatus !== 'playing' || state.isPaused || state.isAnimating) {
-      console.log('Game state check failed')
+    if (state.gameStatus !== 'playing') {
+      console.log('Game not playing, status:', state.gameStatus)
+      return
+    }
+    
+    if (state.isPaused) {
+      console.log('Game is paused')
+      return
+    }
+    
+    if (state.isAnimating) {
+      console.log('Game is animating')
       return
     }
     
     const botPlayer = state.players[state.currentPlayerIndex]
-    if (!botPlayer || botPlayer.id !== botId) {
-      console.log('Bot player check failed:', { botPlayer, botId })
+    console.log('Bot player from state:', botPlayer)
+    
+    if (!botPlayer) {
+      console.log('No bot player found at current index')
       return
     }
     
-    console.log('Bot turn proceeding for:', botPlayer.name)
+    if (botPlayer.id !== botId) {
+      console.log('Bot ID mismatch:', { expected: botId, actual: botPlayer.id })
+      return
+    }
+    
+    console.log('All checks passed, proceeding with bot turn for:', botPlayer.name)
     
     // Lock this bot turn
     processingBotId.current = botId
     
     const startPosition = botPlayer.position
     const botResult = Math.floor(Math.random() * 6) + 1
+    
+    console.log('Bot rolling dice:', { botResult, startPosition })
+    
     setBotDiceResult(botResult)
     setBotName(botPlayer.name)
     setShowBotDiceModal(true)
+    
     setTimeout(() => {
+      console.log('Processing bot move after dice modal')
       setShowBotDiceModal(false)
       
-      // Double-check game state before processing move
-      const currentState = useGameStore.getState()
-      if (currentState.gameStatus !== 'playing' || currentState.isPaused || currentState.isAnimating) {
-        processingBotId.current = null
-        return
-      }
-      
       const moveResult = processMove(botId, botResult)
+      console.log('Move result:', moveResult)
       
       if (moveResult) {
         animateMovement(botId, startPosition, moveResult.position, botResult, () => {
+          console.log('Bot movement animation complete')
           // Release lock immediately before collision or turn end
           processingBotId.current = null
           
@@ -494,14 +513,20 @@ export default function GameScreen({ navigation }: GameScreenProps) {
 
           if (!checkWin(moveResult.position)) {
             const delay = moveResult.collision ? 2500 : 500
-            setTimeout(() => endPlayerTurn(), delay)
+            setTimeout(() => {
+              console.log('Ending bot turn')
+              endPlayerTurn()
+            }, delay)
           }
         })
       } else {
+        console.log('Move failed, releasing lock')
         // Fallback if move failed
         processingBotId.current = null
       }
     }, 1500)
+    
+    console.log('=== handleBotTurn END ===')
   }, [processMove, animateMovement, applyCollision, endPlayerTurn, playSnakeSound, playLadderSound, checkWin])
 
   useEffect(() => {
@@ -510,19 +535,44 @@ export default function GameScreen({ navigation }: GameScreenProps) {
       isPaused,
       isAnimating,
       currentPlayerIndex,
-      players: players.map(p => ({ id: p.id, name: p.name, isCurrentTurn: p.isCurrentTurn }))
+      currentPlayer: players[currentPlayerIndex]
     })
     
-    if (gameStatus !== 'playing' || isPaused || isAnimating) return
+    if (gameStatus !== 'playing') {
+      console.log('Game not playing, status:', gameStatus)
+      return
+    }
+    
+    if (isPaused) {
+      console.log('Game is paused')
+      return
+    }
+    
+    if (isAnimating) {
+      console.log('Game is animating')
+      return
+    }
+    
     const currentPlayer = players[currentPlayerIndex]
-    if (!currentPlayer) return
+    if (!currentPlayer) {
+      console.log('No current player found')
+      return
+    }
     
     console.log('Current player:', currentPlayer)
     
     if (currentPlayer.id.startsWith('bot-')) {
       console.log('Setting bot timer for:', currentPlayer.id)
-      const botTimer = setTimeout(() => handleBotTurn(currentPlayer.id), 1500)
-      return () => clearTimeout(botTimer)
+      const botTimer = setTimeout(() => {
+        console.log('Bot timer fired for:', currentPlayer.id)
+        handleBotTurn(currentPlayer.id)
+      }, 1500)
+      return () => {
+        console.log('Clearing bot timer')
+        clearTimeout(botTimer)
+      }
+    } else {
+      console.log('Current player is not a bot:', currentPlayer.id)
     }
   }, [currentPlayerIndex, gameStatus, players, isPaused, isAnimating, handleBotTurn])
 
