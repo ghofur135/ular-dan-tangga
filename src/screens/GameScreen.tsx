@@ -419,13 +419,35 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   }
 
   const handleBotTurn = useCallback((botId: string) => {
+    console.log('handleBotTurn called with botId:', botId)
+    
     // Prevent double processing
-    if (processingBotId.current === botId) return
+    if (processingBotId.current === botId) {
+      console.log('Bot already processing, skipping')
+      return
+    }
     
     const state = useGameStore.getState()
-    if (state.gameStatus !== 'playing' || state.isPaused || state.isAnimating) return
+    console.log('Bot turn state check:', {
+      gameStatus: state.gameStatus,
+      isPaused: state.isPaused,
+      isAnimating: state.isAnimating,
+      currentPlayerIndex: state.currentPlayerIndex,
+      botPlayer: state.players[state.currentPlayerIndex]
+    })
+    
+    if (state.gameStatus !== 'playing' || state.isPaused || state.isAnimating) {
+      console.log('Game state check failed')
+      return
+    }
+    
     const botPlayer = state.players[state.currentPlayerIndex]
-    if (!botPlayer || botPlayer.id !== botId) return
+    if (!botPlayer || botPlayer.id !== botId) {
+      console.log('Bot player check failed:', { botPlayer, botId })
+      return
+    }
+    
+    console.log('Bot turn proceeding for:', botPlayer.name)
     
     // Lock this bot turn
     processingBotId.current = botId
@@ -483,10 +505,22 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   }, [processMove, animateMovement, applyCollision, endPlayerTurn, playSnakeSound, playLadderSound, checkWin])
 
   useEffect(() => {
+    console.log('Bot turn useEffect triggered:', {
+      gameStatus,
+      isPaused,
+      isAnimating,
+      currentPlayerIndex,
+      players: players.map(p => ({ id: p.id, name: p.name, isCurrentTurn: p.isCurrentTurn }))
+    })
+    
     if (gameStatus !== 'playing' || isPaused || isAnimating) return
     const currentPlayer = players[currentPlayerIndex]
     if (!currentPlayer) return
+    
+    console.log('Current player:', currentPlayer)
+    
     if (currentPlayer.id.startsWith('bot-')) {
+      console.log('Setting bot timer for:', currentPlayer.id)
       const botTimer = setTimeout(() => handleBotTurn(currentPlayer.id), 1500)
       return () => clearTimeout(botTimer)
     }
