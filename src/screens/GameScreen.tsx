@@ -306,8 +306,15 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             // End turn after delay
             const delay = moveResult.collision ? 2500 : (moveResult.moveType !== 'normal' ? 2000 : 500)
             setTimeout(() => {
+              // Check if bot got bonus roll (rolled 6)
+              const stateBeforeEnd = useGameStore.getState()
+              const hadBonusRoll = stateBeforeEnd.hasBonusRoll
+              
               processingBotId.current = null
               endPlayerTurn()
+              
+              // If bot had bonus roll, the turn stays with bot
+              // processingBotId is already null, so useEffect will trigger again
             }, delay)
           }
           
@@ -319,7 +326,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     }, 1000)
     
     return () => clearTimeout(botTimer)
-  }, [currentPlayerIndex, gameStatus, players, isPaused, isAnimating])
+  }, [currentPlayerIndex, gameStatus, players, isPaused, isAnimating, hasBonusRoll])
 
   const animateMovement = async (playerId: string, startPos: number, endPos: number, diceRoll: number, onComplete: () => void) => {
     setAnimating(true, playerId)
