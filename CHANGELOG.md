@@ -8,22 +8,20 @@ dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [2.2.1] - 2026-01-02
 
-### 🐛 Critical Bot Fix - Continuous Dice Rolling
+### 🐛 Critical Bot Fix - Bot Not Rolling Dice
 
 ### Fixed
-- ✅ 🤖 **Bot Infinite Rolling Bug**: Memperbaiki bug kritis di mana bot terus-menerus melempar dadu setelah permainan kedua dimulai
-- ✅ 🔄 **Stale Closure Fix**: Menambahkan `handleBotTurn` ke dependency array useEffect dan menggunakan `useCallback` untuk mencegah stale closure
-- ✅ 🛡️ **Enhanced Bot Safety Checks**: Menambahkan multiple safety checks untuk memastikan bot hanya bergerak saat kondisi yang tepat
+- ✅ 🤖 **Bot Turn useEffect Restored**: Menambahkan kembali useEffect untuk bot turn yang tidak sengaja terhapus saat refactoring sebelumnya
+- ✅ 🎲 **Bot Can Roll Dice Again**: Bot sekarang bisa melempar dadu dengan benar di game pertama dan kedua
+- ✅ � ***Stale Closure Prevention**: Menggunakan `useGameStore.getState()` di dalam timeout untuk mendapatkan state terbaru
+- ✅ 🛡️ **Double Processing Guard**: Menggunakan `processingBotId.current` untuk mencegah bot memproses turn yang sama dua kali
 - ✅ 🎮 **Game Reset Improvements**: Memperbaiki `handlePlayAgain` untuk reset semua bot-related state secara eksplisit
-- ✅ ⚡ **Bonus Roll Loop Fix**: Memperbaiki logika `endPlayerTurn` untuk mencegah loop bonus roll yang menyebabkan bot stuck
-- ✅ 🔒 **Race Condition Prevention**: Menambahkan additional checks untuk mencegah race condition saat game state berubah
 
 ### Technical Details
-- Added `useCallback` untuk `handleBotTurn` dengan proper dependency array
-- Enhanced `processingBotId.current` management untuk prevent double processing
-- Improved game state validation sebelum bot processing move
-- Fixed bonus roll logic di gameStore untuk selalu advance ke player berikutnya
+- Restored bot turn useEffect dengan proper dependency array `[currentPlayerIndex, gameStatus, players, isPaused, isAnimating]`
+- Bot turn logic menggunakan fresh state dari `useGameStore.getState()` untuk menghindari stale closure
 - Added comprehensive bot state reset di `handlePlayAgain` function
+- Cleaned up unused imports (`useCallback`, `ScrollView`, `playTurnBellSound`, `CollisionEvent`)
 
 ---
 

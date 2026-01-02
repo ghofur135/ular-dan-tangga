@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   Alert,
   Modal,
   StatusBar,
-  ScrollView,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useGameStore } from '../store/gameStore'
@@ -19,7 +18,6 @@ import { checkWin, calculateNewPosition } from '../utils/boardLogic'
 import { CUSTOM_BOARD_CONFIG } from '../config/boardConfig'
 import {
   playGameStartSound,
-  playTurnBellSound,
   playSnakeSound,
   playLadderSound,
   startGameBackgroundMusic,
@@ -28,7 +26,6 @@ import {
   resumeGameBackgroundMusic,
   playWinnerSound
 } from '../utils/soundUtils'
-import { CollisionEvent } from '../types/game'
 import { databaseService } from '../services/databaseService'
 
 // Dot patterns for dice face
@@ -210,6 +207,119 @@ export default function GameScreen({ navigation }: GameScreenProps) {
       stopGameBackgroundMusic()
     }
   }, [])
+
+  // Bot turn handler
+  useEffect(() => {
+    // Skip if not playing or paused or animating
+    if (gameStatus !== 'playing' || isPaused || isAnimating) return
+    
+    const currentBot = players[currentPlayerIndex]
+    // Skip if no player or not a bot
+    if (!currentBot || !currentBot.id.startsWith('bot-')) return
+    
+    // Prevent double processing
+    if (processingBotId.current === currentBot.id) return
+    
+    const botTimer = setTimeout(() => {
+      // Re-check state inside timeout to avoid stale closure
+      const state = useGameStore.getState()
+      if (state.gameStatus !== 'playing' || state.isPaused || state.isAnimating) return
+      
+      const botPlayer = state.players[state.currentPlayerIndex]
+      if (!botPlayer || !botPlayer.id.startsWith('bot-')) return
+      
+      // Double check we're not already processing this bot
+      if (processingBotId.current === botPlayer.id) return
+      processingBotId.current = botPlayer.id
+      
+      // Roll dice for bot
+      const diceResult = Math.floor(Math.random() * 6) + 1
+      setBotName(botPlayer.name)
+      setBotDiceResult(diceResult)
+      setShowBotDiceModal(true)
+      
+      // Process bot move after showing dice
+      setTimeout(() => {
+        setShowBotDiceModal(false)
+        
+        const latestState = useGameStore.getState()
+        const latestBot = latestState.players.find(p => p.id === botPlayer.id)
+        if (!latestBot) {
+          processingBotId.current = null
+          return
+        }
+        
+        const startPosition = latestBot.position
+        const moveResult = latestState.processMove(botPlayer.id, diceResult)
+        
+        if (moveResult) {
+          setAnimating(true, botPlayer.id)
+          
+          // Animate bot movement
+          const animateBot = async () => {
+            const steps: number[] = []
+            let currentPos = startPosition
+            
+            for (let i = 0; i < diceResult; i++) {
+              currentPos++
+              if (currentPos <= 100) steps.push(currentPos)
+            }
+            
+            for (let i = 0; i < steps.length; i++) {
+              setAnimationPosition(steps[i])
+              await new Promise(resolve => setTimeout(resolve, 200))
+            }
+            
+            if (moveResult.position !== steps[steps.length - 1]) {
+              await new Promise(resolve => setTimeout(resolve, 250))
+              setAnimationPosition(moveResult.position)
+              await new Promise(resolve => setTimeout(resolve, 300))
+            }
+            
+            setAnimating(false, null)
+            
+            // Handle collision
+            if (moveResult.collision) {
+              setCollisionInfo({
+                bumpedPlayerName: moveResult.collision.bumpedPlayerName,
+                fromPosition: moveResult.collision.bumpedFromPosition,
+                toPosition: moveResult.collision.bumpedToPosition,
+              })
+              applyCollision(moveResult.collision)
+              setShowCollisionModal(true)
+            } else if (moveResult.moveType === 'snake') {
+              playSnakeSound()
+              setShowSnakeModal(true)
+            } else if (moveResult.moveType === 'ladder') {
+              playLadderSound()
+              setShowLadderModal(true)
+            } else if (moveResult.moveType === 'bounce') {
+              setShowBounceModal(true)
+            }
+            
+            // Check win
+            if (checkWin(moveResult.position)) {
+              processingBotId.current = null
+              return
+            }
+            
+            // End turn after delay
+            const delay = moveResult.collision ? 2500 : (moveResult.moveType !== 'normal' ? 2000 : 500)
+            setTimeout(() => {
+              processingBotId.current = null
+              endPlayerTurn()
+            }, delay)
+          }
+          
+          animateBot()
+        } else {
+          processingBotId.current = null
+        }
+      }, 1500)
+    }, 1000)
+    
+    return () => clearTimeout(botTimer)
+  }, [currentPlayerIndex, gameStatus, players, isPaused, isAnimating])
 
   const animateMovement = async (playerId: string, startPos: number, endPos: number, diceRoll: number, onComplete: () => void) => {
     setAnimating(true, playerId)
