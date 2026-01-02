@@ -6,6 +6,17 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.2.0] - 2026-01-02
+
+### ⚖️ Game Balance & Power Up Rules
+
+### Changed
+- ✅ 🛑 **Power Up Restrictions**: Power Ups (Custom Dice, Shield) **dinonaktifkan** saat pemain berada di **Zona Akhir (91-100)** untuk menjaga tantangan di akhir permainan.
+- ✅ 🚫 **Teleport Logic Fixed**: Teleport tidak bisa lagi digunakan pada tangga yang menuju ke kotak kritis (91, 93, 99). Akan muncul pesan error "Sinyal Kacau" jika dicoba.
+- ✅ ⚠️ **UX Improvement**: Menambahkan feedback Modal dan status button yang jelas saat Power Up tidak tersedia karena zona.
+
+---
+
 ## [2.1.0] - 2026-01-02
 
 ### 📱 Android Splash Screen Fix
