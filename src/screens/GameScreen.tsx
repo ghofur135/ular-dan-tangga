@@ -171,11 +171,15 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         // Double check inside setState to prevent race conditions
         if (state.players.some(p => p.id.startsWith('bot-'))) return state
 
+        // Find human player to set as currentPlayerId
+        const humanPlayer = state.players.find(p => !p.id.startsWith('bot-'))
+
         return {
           players: [
             ...state.players,
             { id: `bot-${Date.now()}`, name: botNames[0], color: botColors[0], position: 1, isCurrentTurn: false, joinedAt: new Date() },
           ],
+          currentPlayerId: humanPlayer?.id || state.currentPlayerId, // Ensure currentPlayerId is set
         }
       })
     }
@@ -688,7 +692,18 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   }
 
   const renderPowerUps = () => {
-    if (!isMyTurn() || gameStatus !== 'playing') return null
+    // Debug: Check why power-ups are not showing
+    const myTurn = isMyTurn()
+    const currentPlayer = getCurrentPlayer()
+    console.log('PowerUps Debug:', {
+      isMyTurn: myTurn,
+      gameStatus,
+      currentPlayerId,
+      currentPlayer: currentPlayer?.name,
+      currentPlayerIsBot: currentPlayer?.id.startsWith('bot-')
+    })
+    
+    if (!myTurn || gameStatus !== 'playing') return null
 
     const shieldReady = Date.now() > shieldCooldownEnd
     const customDiceReady = Date.now() > customDiceCooldownEnd
