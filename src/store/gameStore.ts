@@ -255,9 +255,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get()
     if (state.players.length < 2) return
 
+    // CRITICAL FIX: Find human player index first to ensure correct turn order
+    const humanPlayerIndex = state.players.findIndex(p => !p.id.startsWith('bot-'))
+    const startingPlayerIndex = humanPlayerIndex >= 0 ? humanPlayerIndex : 0
+
     const updatedPlayers = state.players.map((p, i) => ({
       ...p,
-      isCurrentTurn: i === 0,
+      isCurrentTurn: i === startingPlayerIndex,
       position: 1,
       diceResult: undefined, // Reset dice result
     }))
@@ -268,7 +272,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       gameStatus: 'playing',
       players: updatedPlayers,
-      currentPlayerIndex: 0,
+      currentPlayerIndex: startingPlayerIndex,
       moveHistory: [],
       winner: null,
       currentPlayerId: humanPlayer?.id || state.currentPlayerId, // Set human player ID if not already set
@@ -348,11 +352,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const collision = checkCollision(result.position, state.players, playerId)
 
-    const updatedPlayers = state.players.map((p) =>
-      p.id === playerId
-        ? { ...p, position: result.position, diceResult: diceRoll }
-        : p
-    )
+    // CRITICAL FIX: Ensure only the current player gets their diceResult updated
+    // This prevents stale diceResult from causing incorrect bonus rolls
+    const updatedPlayers = state.players.map((p) => {
+      if (p.id === playerId) {
+        return { ...p, position: result.position, diceResult: diceRoll }
+      } else {
+        // Clear diceResult for all other players to prevent confusion
+        return { ...p, diceResult: undefined }
+      }
+    })
 
     const hasBonusRoll = diceRoll === 6
 
@@ -446,6 +455,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // If player has bonus roll (rolled a 6), don't advance to next player
     if (state.hasBonusRoll && actuallyRolledSix) {
       // Just clear the bonus roll flag but keep the same player's turn
+      // IMPORTANT: Keep diceResult so we can verify bonus roll in next turn
       set({ hasBonusRoll: false })
       return // Don't advance to next player - same player rolls again
     }
@@ -463,7 +473,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       players: state.players.map((p, i) => ({
         ...p,
         isCurrentTurn: i === nextIndex,
-        diceResult: undefined,
+        // CRITICAL FIX: Only clear diceResult when changing turns
+        diceResult: i === nextIndex ? p.diceResult : undefined,
       })),
       hasBonusRoll: false, // Always reset when changing turns
     })

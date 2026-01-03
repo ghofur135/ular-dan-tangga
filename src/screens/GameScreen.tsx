@@ -368,10 +368,9 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             // Check if bot got bonus roll (rolled 6)
             const hadBonusRoll = stateBeforeEnd.hasBonusRoll
            
-            // CRITICAL FIX: Explicitly check if dice result was actually 6
-            // This prevents stale hasBonusRoll state from causing infinite turns
-            const actualDiceResult = stateBeforeEnd.players.find(p => p.id === botPlayerId)?.diceResult
-            const actuallyHasBonusRoll = actualDiceResult === 6
+            // CRITICAL FIX: Check the dice result from the current move, not from player state
+            // This ensures we're checking the actual dice roll that just happened
+            const actuallyHasBonusRoll = diceResult === 6
            
             // Only use hasBonusRoll if it matches actual dice result
             const shouldHaveBonusRoll = hadBonusRoll && actuallyHasBonusRoll
@@ -382,16 +381,19 @@ export default function GameScreen({ navigation }: GameScreenProps) {
               useGameStore.setState({ hasBonusRoll: false })
             }
            
-            endPlayerTurn()
-           
-            // If bot had bonus roll, execute another turn after delay
-            if (shouldHaveBonusRoll) {
+            // CRITICAL FIX: Only end turn if we're not going to have a bonus roll
+            if (!shouldHaveBonusRoll) {
+              endPlayerTurn()
+              processingBotId.current = null
+              botRollCount.current = 0 // Reset counter when turn ends normally
+            } else {
+              // If bot should have bonus roll, just clear the flag but don't end turn
+              useGameStore.setState({ hasBonusRoll: false })
+              
+              // Execute another turn after delay
               setTimeout(() => {
                 executeBotTurn(botPlayerId, sessionId, true) // Mark as recursive call
               }, 1000)
-            } else {
-              processingBotId.current = null
-              botRollCount.current = 0 // Reset counter when turn ends normally
             }
           }, delay)
         }
@@ -687,25 +689,36 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     setCustomDiceCooldownEnd(0)
     setTeleportUsed(false)
 
-    // Reset game state with explicit clearing of all relevant fields
+    // CRITICAL FIX: Completely reset all game state to prevent any carryover
+    // This ensures no stale state from previous game affects the new game
     useGameStore.setState((state) => {
       // Find human player (non-bot) to set as currentPlayerId
       const humanPlayer = state.players.find(p => !p.id.startsWith('bot-'))
       
+      // CRITICAL: Create completely fresh player objects to prevent any state carryover
+      const freshPlayers = state.players.map((p, i) => {
+        // Human player starts first
+        const isFirstPlayer = !p.id.startsWith('bot-')
+        return {
+          ...p,
+          position: 1,
+          isCurrentTurn: isFirstPlayer,
+          diceResult: undefined, // CRITICAL: Explicitly undefined for all players
+        }
+      })
+      
+      // Find the index of the human player to set as currentPlayerIndex
+      const humanPlayerIndex = freshPlayers.findIndex(p => !p.id.startsWith('bot-'))
+      
       return {
-        players: state.players.map((p, i) => ({ 
-          ...p, 
-          position: 1, 
-          isCurrentTurn: i === 0, 
-          diceResult: undefined 
-        })),
-        currentPlayerIndex: 0, 
-        gameStatus: 'playing', 
-        winner: null, 
-        moveHistory: [], 
-        hasBonusRoll: false, 
+        players: freshPlayers,
+        currentPlayerIndex: humanPlayerIndex >= 0 ? humanPlayerIndex : 0,
+        gameStatus: 'playing',
+        winner: null,
+        moveHistory: [],
+        hasBonusRoll: false, // CRITICAL: Explicitly reset to false
         lastCollision: null,
-        isAnimating: false, 
+        isAnimating: false,
         animatingPlayerId: null,
         isPaused: false,
         currentPlayerId: humanPlayer?.id || null // Set human player as currentPlayerId
