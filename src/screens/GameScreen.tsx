@@ -215,7 +215,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   }, [])
 
   // Function to handle bot turn (can be called recursively for bonus roll)
-  const executeBotTurn = (botPlayerId: string, sessionId: number) => {
+  const executeBotTurn = (botPlayerId: string, sessionId: number, isRecursiveCall = false) => {
     // SAFETY CHECK: Abort if session changed (game was reset)
     if (sessionId !== gameSessionId.current) {
       processingBotId.current = null
@@ -241,6 +241,13 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     if (!botPlayer || !botPlayer.id.startsWith('bot-')) {
       processingBotId.current = null
       return
+    }
+    
+    // CRITICAL FIX: Only allow recursive calls if this is actually a recursive call
+    // This prevents bot from getting infinite turns when hasBonusRoll is stale
+    if (!isRecursiveCall && state.hasBonusRoll) {
+      console.log('Resetting stale hasBonusRoll state for bot')
+      useGameStore.setState({ hasBonusRoll: false })
     }
     
     // Roll dice for bot
@@ -347,17 +354,40 @@ export default function GameScreen({ navigation }: GameScreenProps) {
               processingBotId.current = null
               return
             }
+           
+            // CRITICAL FIX: Get state AFTER checking session ID to prevent race condition
+            const stateBeforeEnd = useGameStore.getState()
+            
+            // SAFETY CHECK: Double check we're still playing and it's still bot's turn
+            if (stateBeforeEnd.gameStatus !== 'playing' ||
+                stateBeforeEnd.players[stateBeforeEnd.currentPlayerIndex]?.id !== botPlayerId) {
+              processingBotId.current = null
+              return
+            }
             
             // Check if bot got bonus roll (rolled 6)
-            const stateBeforeEnd = useGameStore.getState()
             const hadBonusRoll = stateBeforeEnd.hasBonusRoll
-            
+           
+            // CRITICAL FIX: Explicitly check if dice result was actually 6
+            // This prevents stale hasBonusRoll state from causing infinite turns
+            const actualDiceResult = stateBeforeEnd.players.find(p => p.id === botPlayerId)?.diceResult
+            const actuallyHasBonusRoll = actualDiceResult === 6
+           
+            // Only use hasBonusRoll if it matches actual dice result
+            const shouldHaveBonusRoll = hadBonusRoll && actuallyHasBonusRoll
+           
+            // If there's a mismatch, reset the hasBonusRoll state
+            if (hadBonusRoll && !actuallyHasBonusRoll) {
+              console.log('Fixing stale hasBonusRoll state - resetting to false')
+              useGameStore.setState({ hasBonusRoll: false })
+            }
+           
             endPlayerTurn()
-            
+           
             // If bot had bonus roll, execute another turn after delay
-            if (hadBonusRoll) {
+            if (shouldHaveBonusRoll) {
               setTimeout(() => {
-                executeBotTurn(botPlayerId, sessionId)
+                executeBotTurn(botPlayerId, sessionId, true) // Mark as recursive call
               }, 1000)
             } else {
               processingBotId.current = null
@@ -709,8 +739,8 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     const customDiceReady = Date.now() > customDiceCooldownEnd
     
     // Check if in restricted zone (91-100)
-    const currentPlayer = players.find(p => p.id === currentPlayerId)
-    const isRestrictedZone = (currentPlayer?.position || 0) >= 91
+    const playerInGame = players.find(p => p.id === currentPlayerId)
+    const isRestrictedZone = (playerInGame?.position || 0) >= 91
 
     const showRestrictedAlert = () => {
       setPowerUpModalConfig({

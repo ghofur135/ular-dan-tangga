@@ -259,6 +259,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ...p,
       isCurrentTurn: i === 0,
       position: 1,
+      diceResult: undefined, // Reset dice result
     }))
 
     // Find human player (non-bot) to set as currentPlayerId for single player mode
@@ -271,6 +272,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       moveHistory: [],
       winner: null,
       currentPlayerId: humanPlayer?.id || state.currentPlayerId, // Set human player ID if not already set
+      hasBonusRoll: false, // CRITICAL: Explicitly reset hasBonusRoll when starting game
     })
   },
 
@@ -437,11 +439,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get()
     if (state.gameStatus !== 'playing') return
 
+    // CRITICAL FIX: Double-check if player actually rolled a 6
+    const currentPlayer = state.players[state.currentPlayerIndex]
+    const actuallyRolledSix = currentPlayer?.diceResult === 6
+    
     // If player has bonus roll (rolled a 6), don't advance to next player
-    if (state.hasBonusRoll) {
+    if (state.hasBonusRoll && actuallyRolledSix) {
       // Just clear the bonus roll flag but keep the same player's turn
       set({ hasBonusRoll: false })
       return // Don't advance to next player - same player rolls again
+    }
+    
+    // CRITICAL FIX: If hasBonusRoll is true but player didn't actually roll a 6, reset it
+    if (state.hasBonusRoll && !actuallyRolledSix) {
+      console.log('Fixing inconsistent hasBonusRoll state - player did not roll 6')
+      set({ hasBonusRoll: false })
     }
 
     const nextIndex = getNextPlayer(state.currentPlayerIndex, state.players.length)
@@ -453,7 +465,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         isCurrentTurn: i === nextIndex,
         diceResult: undefined,
       })),
-      hasBonusRoll: false,
+      hasBonusRoll: false, // Always reset when changing turns
     })
   },
 
