@@ -261,12 +261,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       position: 1,
     }))
 
+    // Find human player (non-bot) to set as currentPlayerId for single player mode
+    const humanPlayer = state.players.find(p => !p.id.startsWith('bot-'))
+
     set({
       gameStatus: 'playing',
       players: updatedPlayers,
       currentPlayerIndex: 0,
       moveHistory: [],
       winner: null,
+      currentPlayerId: humanPlayer?.id || state.currentPlayerId, // Set human player ID if not already set
     })
   },
 

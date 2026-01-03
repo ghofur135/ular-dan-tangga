@@ -123,10 +123,10 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     cancelText: 'Batal'
   })
 
-  // Timer refresh
-  const [, forceUpdate] = useState({})
+  // Timer refresh for power-up cooldowns
+  const [timerTick, setTimerTick] = useState(0)
   useEffect(() => {
-    const interval = setInterval(() => forceUpdate({}), 1000)
+    const interval = setInterval(() => setTimerTick(prev => prev + 1), 1000)
     return () => clearInterval(interval)
   }, [])
 
@@ -654,23 +654,29 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     setTeleportUsed(false)
 
     // Reset game state with explicit clearing of all relevant fields
-    useGameStore.setState((state) => ({
-      players: state.players.map((p, i) => ({ 
-        ...p, 
-        position: 1, 
-        isCurrentTurn: i === 0, 
-        diceResult: undefined 
-      })),
-      currentPlayerIndex: 0, 
-      gameStatus: 'playing', 
-      winner: null, 
-      moveHistory: [], 
-      hasBonusRoll: false, 
-      lastCollision: null,
-      isAnimating: false, 
-      animatingPlayerId: null,
-      isPaused: false
-    }))
+    useGameStore.setState((state) => {
+      // Find human player (non-bot) to set as currentPlayerId
+      const humanPlayer = state.players.find(p => !p.id.startsWith('bot-'))
+      
+      return {
+        players: state.players.map((p, i) => ({ 
+          ...p, 
+          position: 1, 
+          isCurrentTurn: i === 0, 
+          diceResult: undefined 
+        })),
+        currentPlayerIndex: 0, 
+        gameStatus: 'playing', 
+        winner: null, 
+        moveHistory: [], 
+        hasBonusRoll: false, 
+        lastCollision: null,
+        isAnimating: false, 
+        animatingPlayerId: null,
+        isPaused: false,
+        currentPlayerId: humanPlayer?.id || null // Set human player as currentPlayerId
+      }
+    })
   }
   const handleExitGame = () => { setShowWinModal(false); setShowWinnerModal(false); resetGame(); navigation.navigate('Home') }
 
