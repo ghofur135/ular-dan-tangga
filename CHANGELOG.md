@@ -6,6 +6,21 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.2.2] - 2026-01-06
+
+### 🐛 Critical Bot Fix - Double Roll Bug Resolved
+
+### Fixed
+- ✅ 🔒 **Global Lock Mechanism**: Implementasi `globalBotProcessingLock` untuk mencegah bot memproses turn ganda (race condition)
+- ✅ 🛡️ **Duplicate Component Cleaned**: Menghapus duplikasi kode `executeBotTurn` dan imports yang menyebabkan error build
+- ✅ 🔄 **Strict Turn Validation**: Pengecekan `sessionId` dan `botPlayerId` super ketat di dalam timeout untuk mencegah zombie timers
+
+### Technical
+- Refactored `executeBotTurn` di `GameScreen.tsx` dengan Global Lock pattern
+- Moved `useGameStore` hook ke top-level component untuk menghindari "used before declaration" errors
+
+---
+
 ## [2.2.1] - 2026-01-02
 
 ### 🐛 Critical Bot Fix - Bot Not Rolling Dice
