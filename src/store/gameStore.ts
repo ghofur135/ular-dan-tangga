@@ -255,18 +255,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get()
     if (state.players.length < 2) return
 
+    // CRITICAL FIX: Find human player index first to ensure correct turn order
+    const humanPlayerIndex = state.players.findIndex(p => !p.id.startsWith('bot-'))
+    const startingPlayerIndex = humanPlayerIndex >= 0 ? humanPlayerIndex : 0
+
     const updatedPlayers = state.players.map((p, i) => ({
       ...p,
-      isCurrentTurn: i === 0,
+      isCurrentTurn: i === startingPlayerIndex,
       position: 1,
+      diceResult: undefined, // Reset dice result
     }))
+
+    // Find human player (non-bot) to set as currentPlayerId for single player mode
+    const humanPlayer = state.players.find(p => !p.id.startsWith('bot-'))
 
     set({
       gameStatus: 'playing',
       players: updatedPlayers,
-      currentPlayerIndex: 0,
+      currentPlayerIndex: startingPlayerIndex,
       moveHistory: [],
       winner: null,
+      currentPlayerId: humanPlayer?.id || state.currentPlayerId, // Set human player ID if not already set
+      hasBonusRoll: false, // CRITICAL: Explicitly reset hasBonusRoll when starting game
     })
   },
 
@@ -340,14 +350,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
       CUSTOM_BOARD_CONFIG.ladders
     )
 
+    console.log(`[Dice Roll] Player ${player.name} rolled ${diceRoll}. Pos: ${player.position} -> ${result.position} (${result.moveType})`)
+
     const collision = checkCollision(result.position, state.players, playerId)
 
-    const updatedPlayers = state.players.map((p) =>
-      p.id === playerId
-        ? { ...p, position: result.position, diceResult: diceRoll }
-        : p
-    )
+    // CRITICAL FIX: Ensure only the current player gets their diceResult updated
+    // This prevents stale diceResult from causing incorrect bonus rolls
+    const updatedPlayers = state.players.map((p) => {
+      if (p.id === playerId) {
+        return { ...p, position: result.position, diceResult: diceRoll }
+      } else {
+        // Clear diceResult for all other players to prevent confusion
+        return { ...p, diceResult: undefined }
+      }
+    })
 
+    // CRITICAL FIX: Only set hasBonusRoll if player actually rolled a 6
+    // This is especially important for bot turns to prevent multiple rolls
     const hasBonusRoll = diceRoll === 6
 
     set({
@@ -383,6 +402,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get()
     const player = state.players.find((p) => p.id === playerId)
     if (!player) return null
+
+    console.log(`[Teleport] Player ${player.name} initiated teleport (current pos: ${player.position})`)
 
     // Find nearest ladder ahead
     const ladders = CUSTOM_BOARD_CONFIG.ladders
@@ -433,23 +454,39 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get()
     if (state.gameStatus !== 'playing') return
 
+    // CRITICAL FIX: Double-check if player actually rolled a 6
+    const currentPlayer = state.players[state.currentPlayerIndex]
+    console.log(`[End Turn] Checking for ${currentPlayer?.name}. Bonus: ${state.hasBonusRoll}, Dice: ${currentPlayer?.diceResult}`)
+    const actuallyRolledSix = currentPlayer?.diceResult === 6
+    
+    // CRITICAL FIX: If hasBonusRoll is true but player didn't actually roll a 6, reset it immediately
+    // This is especially important for bot turns to prevent multiple rolls
+    if (state.hasBonusRoll && !actuallyRolledSix) {
+      console.log('Fixing inconsistent hasBonusRoll state - player did not roll 6')
+      set({ hasBonusRoll: false })
+    }
+    
     // If player has bonus roll (rolled a 6), don't advance to next player
-    if (state.hasBonusRoll) {
+    if (state.hasBonusRoll && actuallyRolledSix) {
       // Just clear the bonus roll flag but keep the same player's turn
+      // IMPORTANT: Keep diceResult so we can verify bonus roll in next turn
       set({ hasBonusRoll: false })
       return // Don't advance to next player - same player rolls again
     }
 
     const nextIndex = getNextPlayer(state.currentPlayerIndex, state.players.length)
 
+    console.log(`[Turn switch] ${state.players[state.currentPlayerIndex]?.name} -> ${state.players[nextIndex]?.name}`)
+
     set({
       currentPlayerIndex: nextIndex,
       players: state.players.map((p, i) => ({
         ...p,
         isCurrentTurn: i === nextIndex,
-        diceResult: undefined,
+        // CRITICAL FIX: Only clear diceResult when changing turns
+        diceResult: i === nextIndex ? p.diceResult : undefined,
       })),
-      hasBonusRoll: false,
+      hasBonusRoll: false, // Always reset when changing turns
     })
   },
 
@@ -508,6 +545,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           moveType: moveType as 'normal' | 'snake' | 'ladder' | 'bounce' | 'collision',
         },
       ],
+      // CRITICAL FIX: Only set hasBonusRoll if player actually rolled a 6
       hasBonusRoll: diceRoll === 6,
     }))
 
