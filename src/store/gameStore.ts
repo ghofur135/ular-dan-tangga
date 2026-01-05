@@ -350,6 +350,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       CUSTOM_BOARD_CONFIG.ladders
     )
 
+    console.log(`[Dice Roll] Player ${player.name} rolled ${diceRoll}. Pos: ${player.position} -> ${result.position} (${result.moveType})`)
+
     const collision = checkCollision(result.position, state.players, playerId)
 
     // CRITICAL FIX: Ensure only the current player gets their diceResult updated
@@ -363,6 +365,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     })
 
+    // CRITICAL FIX: Only set hasBonusRoll if player actually rolled a 6
+    // This is especially important for bot turns to prevent multiple rolls
     const hasBonusRoll = diceRoll === 6
 
     set({
@@ -398,6 +402,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get()
     const player = state.players.find((p) => p.id === playerId)
     if (!player) return null
+
+    console.log(`[Teleport] Player ${player.name} initiated teleport (current pos: ${player.position})`)
 
     // Find nearest ladder ahead
     const ladders = CUSTOM_BOARD_CONFIG.ladders
@@ -450,7 +456,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // CRITICAL FIX: Double-check if player actually rolled a 6
     const currentPlayer = state.players[state.currentPlayerIndex]
+    console.log(`[End Turn] Checking for ${currentPlayer?.name}. Bonus: ${state.hasBonusRoll}, Dice: ${currentPlayer?.diceResult}`)
     const actuallyRolledSix = currentPlayer?.diceResult === 6
+    
+    // CRITICAL FIX: If hasBonusRoll is true but player didn't actually roll a 6, reset it immediately
+    // This is especially important for bot turns to prevent multiple rolls
+    if (state.hasBonusRoll && !actuallyRolledSix) {
+      console.log('Fixing inconsistent hasBonusRoll state - player did not roll 6')
+      set({ hasBonusRoll: false })
+    }
     
     // If player has bonus roll (rolled a 6), don't advance to next player
     if (state.hasBonusRoll && actuallyRolledSix) {
@@ -459,14 +473,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ hasBonusRoll: false })
       return // Don't advance to next player - same player rolls again
     }
-    
-    // CRITICAL FIX: If hasBonusRoll is true but player didn't actually roll a 6, reset it
-    if (state.hasBonusRoll && !actuallyRolledSix) {
-      console.log('Fixing inconsistent hasBonusRoll state - player did not roll 6')
-      set({ hasBonusRoll: false })
-    }
 
     const nextIndex = getNextPlayer(state.currentPlayerIndex, state.players.length)
+
+    console.log(`[Turn switch] ${state.players[state.currentPlayerIndex]?.name} -> ${state.players[nextIndex]?.name}`)
 
     set({
       currentPlayerIndex: nextIndex,
@@ -535,6 +545,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           moveType: moveType as 'normal' | 'snake' | 'ladder' | 'bounce' | 'collision',
         },
       ],
+      // CRITICAL FIX: Only set hasBonusRoll if player actually rolled a 6
       hasBonusRoll: diceRoll === 6,
     }))
 
