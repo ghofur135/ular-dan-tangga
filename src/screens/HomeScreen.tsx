@@ -156,6 +156,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     if (!success) return
 
     await stopBackgroundMusic()
+
+    // Default: Disable Education Mode for normal quick play (unless set elsewhere)
+    // Actually, distinct buttons handle the setting, but safe to reset here if we want strictly 'Normal' vs 'Edu'.
+    // However, the button handler logic I just added sets it TRUE. 
+    // The normal button should set it FALSE.
+    // Let's modify handleQuickPlay to accept an argument or handle it before calling.
+
+    // Better: split logic or updated handleQuickPlay.
+    // Since I can't change the function signature easily in this tool call without replacing the whole function block,
+    // I will let the button handler manage the state BEFORE calling this function.
+
     createGameRoom(
       `Game-${Date.now().toString(36)}`,
       playerName.trim(),
@@ -320,9 +331,28 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               styles.btnSecondary,
               pressed && styles.btnPressed,
             ]}
-            onPress={handleQuickPlay}
+            onPress={() => {
+              useGameStore.getState().setEducationMode(false)
+              handleQuickPlay()
+            }}
           >
             <Text style={styles.btnSecondaryText}>🤖 VS Bot</Text>
+          </Pressable>
+
+          {/* New Education Mode Button */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.btnEducation,
+              pressed && styles.btnPressed,
+            ]}
+            onPress={() => {
+              // Enable Education Mode and Start Quick Play
+              useGameStore.getState().setEducationMode(true)
+              handleQuickPlay()
+            }}
+          >
+            <Text style={styles.btnEducationText}>🎓 Edu Mode</Text>
           </Pressable>
 
           <Pressable
@@ -567,6 +597,17 @@ const styles = StyleSheet.create({
   btnSecondaryText: {
     color: '#15803D',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  btnEducation: {
+    backgroundColor: '#E0F7FA', // Light Cyan/Blue
+    borderWidth: 2,
+    borderColor: '#00BCD4',
+    flex: 1,
+  },
+  btnEducationText: {
+    color: '#0097A7',
+    fontSize: 14,
     fontWeight: 'bold',
   },
   versionText: {

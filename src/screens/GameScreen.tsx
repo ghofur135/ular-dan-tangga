@@ -27,6 +27,9 @@ import {
   playWinnerSound
 } from '../utils/soundUtils'
 import { databaseService } from '../services/databaseService'
+import EducationModal from '../components/EducationModal'
+import { educationService } from '../services/educationService'
+import { EducationFact, EducationQuestion } from '../types/education'
 
 // Module-level lock to prevent race conditions across re-renders or multiple instances
 let globalBotProcessingLock: string | null = null;
@@ -113,6 +116,8 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     applyCollision,
     isMyTurn,
     getCurrentPlayer,
+    isEducationMode,
+    setEducationMode,
   } = useGameStore()
   const [showWinModal, setShowWinModal] = useState(false)
   const [showPauseModal, setShowPauseModal] = useState(false)
@@ -134,9 +139,17 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   const [teleportUsed, setTeleportUsed] = useState(false)
 
   const [showCustomDiceModal, setShowCustomDiceModal] = useState(false)
+
+  // Education Mode State
+  const [showEducationModal, setShowEducationModal] = useState(false)
+  const [educationType, setEducationType] = useState<'quiz' | 'fact'>('quiz')
+  const [educationData, setEducationData] = useState<EducationQuestion | EducationFact | null>(null)
+  const [pendingMove, setPendingMove] = useState<{ result: number; prediction: any } | null>(null)
+  const [highlightedSquare, setHighlightedSquare] = useState<number | null>(null)
+
   // GLOBAL LOCK REPLACEMENT: Use a ref that syncs with global if needed, but for now relies on the static variable
   // checking below.
-  const processingBotId = useRef<string | null>(null) 
+  const processingBotId = useRef<string | null>(null)
   const gameSessionId = useRef<number>(0) // Track game session to prevent stale callbacks
   const botRollCount = useRef<number>(0) // Safety counter to prevent infinite loops
 
@@ -167,7 +180,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
       processingBotId.current = null
       return
     }
-    
+
     // SAFETY CHECK: Prevent infinite loops - max 10 rolls per turn sequence
     botRollCount.current += 1
     if (botRollCount.current > 10) {
@@ -177,35 +190,35 @@ export default function GameScreen({ navigation }: GameScreenProps) {
       botRollCount.current = 0
       return
     }
-    
+
     const state = useGameStore.getState()
     if (state.gameStatus !== 'playing' || state.isPaused || state.isAnimating) {
       globalBotProcessingLock = null
       processingBotId.current = null
       return
     }
-    
+
     const botPlayer = state.players.find(p => p.id === botPlayerId)
     if (!botPlayer || !botPlayer.id.startsWith('bot-')) {
       globalBotProcessingLock = null
       processingBotId.current = null
       return
     }
-    
+
     // CRITICAL FIX: Always reset hasBonusRoll at the start of bot turn to prevent stale state
     // This ensures bot doesn't get bonus rolls from previous turns
     if (state.hasBonusRoll) {
       console.log('Resetting stale hasBonusRoll state for bot at turn start')
       useGameStore.setState({ hasBonusRoll: false })
     }
-    
+
     // Roll dice for bot
     const diceResult = Math.floor(Math.random() * 6) + 1
     console.log(`[Bot Turn] ${botPlayer.name} rolled ${diceResult}`)
     setBotName(botPlayer.name)
     setBotDiceResult(diceResult)
     setShowBotDiceModal(true)
-    
+
     // Process bot move after showing dice
     setTimeout(() => {
       // SAFETY CHECK: Abort if session changed
@@ -215,29 +228,29 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         setShowBotDiceModal(false)
         return
       }
-      
+
       setShowBotDiceModal(false)
-      
+
       const latestState = useGameStore.getState()
       if (latestState.gameStatus !== 'playing') {
         globalBotProcessingLock = null
         processingBotId.current = null
         return
       }
-      
+
       const latestBot = latestState.players.find(p => p.id === botPlayerId)
       if (!latestBot) {
         globalBotProcessingLock = null
         processingBotId.current = null
         return
       }
-      
+
       const startPosition = latestBot.position
       const moveResult = latestState.processMove(botPlayerId, diceResult)
-      
+
       if (moveResult) {
         setAnimating(true, botPlayerId)
-        
+
         // Animate bot movement
         const animateBot = async () => {
           // SAFETY CHECK: Abort if session changed
@@ -247,15 +260,15 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             processingBotId.current = null
             return
           }
-          
+
           const steps: number[] = []
           let currentPos = startPosition
-          
+
           for (let i = 0; i < diceResult; i++) {
             currentPos++
             if (currentPos <= 100) steps.push(currentPos)
           }
-          
+
           for (let i = 0; i < steps.length; i++) {
             if (sessionId !== gameSessionId.current) {
               setAnimating(false, null)
@@ -266,15 +279,15 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             setAnimationPosition(steps[i])
             await new Promise(resolve => setTimeout(resolve, 200))
           }
-          
+
           if (moveResult.position !== steps[steps.length - 1]) {
             await new Promise(resolve => setTimeout(resolve, 250))
             setAnimationPosition(moveResult.position)
             await new Promise(resolve => setTimeout(resolve, 300))
           }
-          
+
           setAnimating(false, null)
-          
+
           // Handle collision
           if (moveResult.collision) {
             setCollisionInfo({
@@ -293,7 +306,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           } else if (moveResult.moveType === 'bounce') {
             setShowBounceModal(true)
           }
-          
+
           // Check win
           if (checkWin(moveResult.position)) {
             globalBotProcessingLock = null
@@ -301,7 +314,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             botRollCount.current = 0
             return
           }
-          
+
           // End turn after delay
           const delay = moveResult.collision ? 2500 : (moveResult.moveType !== 'normal' ? 2000 : 500)
           setTimeout(() => {
@@ -311,28 +324,28 @@ export default function GameScreen({ navigation }: GameScreenProps) {
               processingBotId.current = null
               return
             }
-           
+
             // CRITICAL FIX: Get state AFTER checking session ID to prevent race condition
             const stateBeforeEnd = useGameStore.getState()
-            
+
             // SAFETY CHECK: Double check we're still playing and it's still bot's turn
             if (stateBeforeEnd.gameStatus !== 'playing' ||
-                stateBeforeEnd.players[stateBeforeEnd.currentPlayerIndex]?.id !== botPlayerId) {
+              stateBeforeEnd.players[stateBeforeEnd.currentPlayerIndex]?.id !== botPlayerId) {
               globalBotProcessingLock = null
               processingBotId.current = null
               return
             }
-            
+
             // CRITICAL FIX: Check if bot got bonus roll (rolled 6)
             // We should ONLY check the actual dice result, not the potentially stale hasBonusRoll state
             const actuallyHasBonusRoll = diceResult === 6
-           
+
             // CRITICAL FIX: Always reset hasBonusRoll to prevent stale state
             if (stateBeforeEnd.hasBonusRoll) {
               console.log('Resetting hasBonusRoll state for bot')
               useGameStore.setState({ hasBonusRoll: false })
             }
-           
+
             // CRITICAL FIX: Only end turn if bot didn't roll a 6
             if (!actuallyHasBonusRoll) {
               useGameStore.setState({ hasBonusRoll: false })
@@ -349,7 +362,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             }
           }, delay)
         }
-        
+
         animateBot()
       } else {
         globalBotProcessingLock = null
@@ -362,73 +375,73 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   useEffect(() => {
     // Skip if not playing or paused or animating
     if (gameStatus !== 'playing' || isPaused || isAnimating) return
-    
+
     const currentBot = players[currentPlayerIndex]
     // Skip if no player or not a bot
     if (!currentBot || !currentBot.id.startsWith('bot-')) return
-    
+
     // Prevent double processing
     if (processingBotId.current === currentBot.id) {
-        // console.log(`[Effect] Skipping ${currentBot.id}, already processing`) // Optional: too noisy?
-        return
+      // console.log(`[Effect] Skipping ${currentBot.id}, already processing`) // Optional: too noisy?
+      return
     }
-    
+
     // Capture current session ID
     const currentSessionId = gameSessionId.current
-    
+
     console.log(`[Effect] Scheduling bot turn for ${currentBot.name} (ID: ${currentBot.id})`)
     const botTimer = setTimeout(() => {
       console.log(`[Effect] Timer fired for ${currentBot.name}. ProcessingId: ${processingBotId.current}`)
 
       // SAFETY CHECK: Abort if session changed (game was reset)
       if (currentSessionId !== gameSessionId.current) return
-      
+
       // Re-check state inside timeout to avoid stale closure
       const state = useGameStore.getState()
       if (state.gameStatus !== 'playing' || state.isPaused || state.isAnimating) return
-      
+
       const botPlayer = state.players[state.currentPlayerIndex]
-      
+
       // Strict check: Is it actually this bot's turn right now?
       if (!botPlayer || !botPlayer.id.startsWith('bot-') || botPlayer.id !== currentBot.id) {
-          console.log(`[Effect] Turn validation failed for ${currentBot.name}. Current: ${botPlayer?.name}`)
-          return
+        console.log(`[Effect] Turn validation failed for ${currentBot.name}. Current: ${botPlayer?.name}`)
+        return
       }
-      
+
       // GLOBAL LOCK CHECK
       if (globalBotProcessingLock && globalBotProcessingLock === botPlayer.id && !processingBotId.current) {
-         // This means another instance or previous timer already grabbed it
-         console.log(`[Effect] Aborting execution - Global Lock held by ${globalBotProcessingLock}`)
-         return
+        // This means another instance or previous timer already grabbed it
+        console.log(`[Effect] Aborting execution - Global Lock held by ${globalBotProcessingLock}`)
+        return
       }
-      
+
       // Double check we're not already processing this bot
       if (processingBotId.current === botPlayer.id) {
         console.log(`[Effect] Aborting execution - Bot ${botPlayer.name} already processing (Ref check)`)
         return
       }
-      
+
       if (processingBotId.current && processingBotId.current !== botPlayer.id) {
-          console.log(`[Effect] Busy with another player: ${processingBotId.current}`)
-          return
+        console.log(`[Effect] Busy with another player: ${processingBotId.current}`)
+        return
       }
-      
+
       if (globalBotProcessingLock && globalBotProcessingLock !== botPlayer.id) {
-          console.log(`[Effect] Busy with global lock: ${globalBotProcessingLock}`)
-          return
+        console.log(`[Effect] Busy with global lock: ${globalBotProcessingLock}`)
+        return
       }
 
       console.log(`[Effect] LOCKING processing for ${botPlayer.name}`)
       processingBotId.current = botPlayer.id
       globalBotProcessingLock = botPlayer.id
-      botRollCount.current = 0 
-      
+      botRollCount.current = 0
+
       executeBotTurn(botPlayer.id, currentSessionId)
     }, 1000)
-    
+
     return () => {
-        console.log(`[Effect] Cleanup - Cancelling timer for ${currentBot.name}`)
-        clearTimeout(botTimer)
+      console.log(`[Effect] Cleanup - Cancelling timer for ${currentBot.name}`)
+      clearTimeout(botTimer)
     }
   }, [currentPlayerIndex, gameStatus, players, isPaused, isAnimating])
 
@@ -529,7 +542,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     onComplete()
   }
 
-  const handleDiceRoll = (result: number, isCustom = false) => {
+  const handleDiceRoll = async (result: number, isCustom = false) => {
     console.log(`[Player Turn] Dice rolled: ${result} (Custom: ${isCustom})`)
     if (!currentPlayerId) return
     const player = players.find(p => p.id === currentPlayerId)
@@ -570,6 +583,44 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         icon: '🛡️',
       })
       setShowPowerUpModal(true)
+    }
+
+    // Education Mode Logic Interception
+    if (isEducationMode) {
+      if (prediction.moveType === 'snake') {
+        const question = await educationService.getRandomQuestion(undefined, 'medium')
+        if (question) {
+          setPendingMove({ result, prediction })
+          setEducationType('quiz')
+          setEducationData(question)
+          setShowEducationModal(true)
+          return
+        }
+      } else if (prediction.moveType === 'ladder') {
+        const question = await educationService.getRandomQuestion(undefined, 'hard') // Harder for ladders!
+        if (question) {
+          setPendingMove({ result, prediction })
+          setEducationType('quiz')
+          setEducationData(question)
+          setShowEducationModal(true)
+          return
+        }
+      } else if (prediction.moveType === 'normal' && Math.random() < 0.3) {
+        // 30% chance for Fun Fact on normal moves
+        const fact = await educationService.getRandomFact()
+        if (fact) {
+          // Highlight the square with glow effect before showing fact
+          setHighlightedSquare(prediction.position)
+          await new Promise(resolve => setTimeout(resolve, 1500)) // Blink for 1.5s
+          setHighlightedSquare(null)
+
+          setPendingMove({ result, prediction })
+          setEducationType('fact')
+          setEducationData(fact)
+          setShowEducationModal(true)
+          return
+        }
+      }
     }
 
     const moveResult = processMove(currentPlayerId, result, { ignoreSnakes })
@@ -640,12 +691,12 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     const sortedLadderBottoms = Object.keys(ladders).map(Number).sort((a, b) => a - b)
     const player = players.find(p => p.id === currentPlayerId)
     if (!player) return
-    
+
     // Check if player is already in restricted zone for teleport checks logic generally
     // (Though the prompt specifically said restricted DESTINATIONS for teleport)
-    
+
     const nextLadderBottom = sortedLadderBottoms.find(b => b > player.position)
-    
+
     // Validation logic moved here to give alert BEFORE confirming
     if (nextLadderBottom) {
       const targetPos = ladders[nextLadderBottom]
@@ -729,7 +780,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   const handlePlayAgain = () => {
     setShowWinModal(false)
     setShowWinnerModal(false)
-    
+
     // Reset all bot-related state - CRITICAL for preventing infinite loop
     processingBotId.current = null
     gameSessionId.current += 1 // Increment session to invalidate any pending callbacks
@@ -737,7 +788,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     setShowBotDiceModal(false)
     setBotDiceResult(1)
     setBotName('')
-    
+
     // Reset powerups
     setShieldCharges(0)
     setShieldCooldownEnd(0)
@@ -749,7 +800,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     useGameStore.setState((state) => {
       // Find human player (non-bot) to set as currentPlayerId
       const humanPlayer = state.players.find(p => !p.id.startsWith('bot-'))
-      
+
       // CRITICAL: Create completely fresh player objects to prevent any state carryover
       const freshPlayers = state.players.map((p, i) => {
         // Human player starts first
@@ -761,10 +812,10 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           diceResult: undefined, // CRITICAL: Explicitly undefined for all players
         }
       })
-      
+
       // Find the index of the human player to set as currentPlayerIndex
       const humanPlayerIndex = freshPlayers.findIndex(p => !p.id.startsWith('bot-'))
-      
+
       return {
         players: freshPlayers,
         currentPlayerIndex: humanPlayerIndex >= 0 ? humanPlayerIndex : 0,
@@ -793,12 +844,12 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     // Debug: Check why power-ups are not showing
     const myTurn = isMyTurn()
     const currentPlayer = getCurrentPlayer()
-    
+
     if (!myTurn || gameStatus !== 'playing') return null
 
     const shieldReady = Date.now() > shieldCooldownEnd
     const customDiceReady = Date.now() > customDiceCooldownEnd
-    
+
     // Check if in restricted zone (91-100)
     const playerInGame = players.find(p => p.id === currentPlayerId)
     const isRestrictedZone = (playerInGame?.position || 0) >= 91
@@ -820,15 +871,15 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           style={[styles.powerUpBtn, (!customDiceReady || isRestrictedZone) && styles.powerUpDisabled]}
           onPress={() => {
             if (isRestrictedZone) {
-               showRestrictedAlert()
-               return
+              showRestrictedAlert()
+              return
             }
             if (customDiceReady && canRoll) setShowCustomDiceModal(true)
           }}
         >
           <Text style={styles.powerUpIcon}>🎲</Text>
           {isRestrictedZone ? (
-             <Text style={[styles.powerUpLabel, { fontSize: 8 }]}>Zona Akhir</Text>
+            <Text style={[styles.powerUpLabel, { fontSize: 8 }]}>Zona Akhir</Text>
           ) : customDiceReady ? (
             <Text style={styles.powerUpLabel}>Pilih</Text>
           ) : (
@@ -850,10 +901,10 @@ export default function GameScreen({ navigation }: GameScreenProps) {
               setShowPowerUpModal(true)
               return
             }
-            
+
             if (isRestrictedZone) {
-               showRestrictedAlert()
-               return
+              showRestrictedAlert()
+              return
             }
 
             // Only allowing activation if ready and not already stacked?
@@ -876,10 +927,10 @@ export default function GameScreen({ navigation }: GameScreenProps) {
               <Text style={styles.badgeText}>{shieldCharges}</Text>
             </View>
           ) : isRestrictedZone ? (
-             <Text style={[styles.powerUpLabel, { fontSize: 8 }]}>Zona Akhir</Text>
+            <Text style={[styles.powerUpLabel, { fontSize: 8 }]}>Zona Akhir</Text>
           ) : (!shieldReady && (
-              <Text style={styles.powerUpTimer}>{getCooldownText(shieldCooldownEnd)}</Text>
-            )
+            <Text style={styles.powerUpTimer}>{getCooldownText(shieldCooldownEnd)}</Text>
+          )
           )}
           <Text style={[styles.powerUpLabel, shieldCharges > 0 && { color: '#fff', fontWeight: 'bold' }]}>
             {shieldCharges > 0 ? "Aktif" : (isRestrictedZone ? "🚫" : "Anti Ular")}
@@ -934,7 +985,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
 
       {/* Game Board - Flex to fill available space */}
       <View style={styles.boardContainer}>
-        <GameBoard players={players} />
+        <GameBoard players={players} highlightedSquare={highlightedSquare} />
       </View>
 
       {/* Power Ups (Floating or Row) */}
@@ -1001,6 +1052,15 @@ export default function GameScreen({ navigation }: GameScreenProps) {
             <Text style={styles.modalEmoji}>⏸️</Text>
             <Text style={styles.modalTitle}>Game Dijeda</Text>
             <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: isEducationMode ? '#4ECDC4' : '#e0e0e0', marginBottom: 10 }]}
+                onPress={() => setEducationMode(!isEducationMode)}
+              >
+                <Text style={[styles.modalButtonText, { color: isEducationMode ? 'white' : '#666' }]}>
+                  {isEducationMode ? '🎓 Mode Edukasi: ON' : '🎓 Mode Edukasi: OFF'}
+                </Text>
+              </Pressable>
+
               <Pressable style={[styles.modalButton, styles.resumeButton]} onPress={handleResumeGame}>
                 <Text style={styles.modalButtonText}>▶️ Lanjutkan</Text>
               </Pressable>
@@ -1078,6 +1138,104 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         cancelText={powerUpModalConfig.cancelText}
         onConfirm={powerUpModalConfig.onConfirm}
         onClose={() => setShowPowerUpModal(false)}
+      />
+
+      <EducationModal
+        visible={showEducationModal}
+        type={educationType}
+        data={educationData}
+        onClose={(success) => {
+          setShowEducationModal(false)
+
+          if (!pendingMove || !currentPlayerId) return
+          const { result, prediction } = pendingMove
+          const startPosition = players.find(p => p.id === currentPlayerId)?.position || 1
+
+          let ignoreSnakes = false
+          let ignoreLadders = false
+
+          if (educationType === 'quiz') {
+            if (success) {
+              // Correct answer!
+              if (prediction.moveType === 'snake') {
+                // Immunity!
+                ignoreSnakes = true
+                setPowerUpModalConfig({
+                  type: 'success',
+                  title: 'Jawaban Benar!',
+                  message: 'Kamu lolos dari ular! 🐍✨',
+                  icon: '✅'
+                })
+                setShowPowerUpModal(true)
+              } else if (prediction.moveType === 'ladder') {
+                // Climb!
+                // Default behavior is climbing, so nothing to change
+                setPowerUpModalConfig({
+                  type: 'success',
+                  title: 'Hebat!',
+                  message: 'Kamu naik tangga! 🪜🚀',
+                  icon: '🎉'
+                })
+                setShowPowerUpModal(true)
+              }
+            } else {
+              // Wrong answer
+              if (prediction.moveType === 'snake') {
+                // Slide down (default)
+                setPowerUpModalConfig({
+                  type: 'error',
+                  title: 'Salah...',
+                  message: 'Yah, kamu harus turun... 😢',
+                  icon: '❌'
+                })
+                setShowPowerUpModal(true)
+              } else if (prediction.moveType === 'ladder') {
+                // Denied!
+                ignoreLadders = true
+                setPowerUpModalConfig({
+                  type: 'error',
+                  title: 'Sayang Sekali',
+                  message: 'Gagal naik tangga. Coba lagi nanti! 🛑',
+                  icon: '🔒'
+                })
+                setShowPowerUpModal(true)
+              }
+            }
+          }
+
+          // Execute Move after delay to let feedback show
+          setTimeout(() => {
+            const moveResult = processMove(currentPlayerId, result, { ignoreSnakes, ignoreLadders })
+            if (moveResult) {
+              animateMovement(currentPlayerId, startPosition, moveResult.position, result, () => {
+                if (moveResult.collision) {
+                  setCollisionInfo({
+                    bumpedPlayerName: moveResult.collision.bumpedPlayerName,
+                    fromPosition: moveResult.collision.bumpedFromPosition,
+                    toPosition: moveResult.collision.bumpedToPosition,
+                  })
+                  applyCollision(moveResult.collision)
+                  setShowCollisionModal(true)
+                } else if (moveResult.moveType === 'snake') {
+                  playSnakeSound()
+                  setShowSnakeModal(true)
+                } else if (moveResult.moveType === 'ladder') {
+                  playLadderSound()
+                  setShowLadderModal(true)
+                } else if (moveResult.moveType === 'bounce') {
+                  setShowBounceModal(true)
+                }
+
+                if (checkWin(moveResult.position)) return
+
+                const delay = moveResult.collision ? 2500 : (moveResult.moveType !== 'normal' ? 2000 : 500)
+                setTimeout(() => endPlayerTurn(), delay)
+              })
+            }
+          }, 1500)
+
+          setPendingMove(null)
+        }}
       />
     </View>
   )
