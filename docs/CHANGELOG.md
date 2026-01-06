@@ -6,6 +6,28 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.3.2] - 2026-01-07
+
+### 📉 Admin Dashboard & Data Import
+
+### Added
+- ✅ 📥 **Bulk Question Import**: Import ratusan pertanyaan sekaligus dengan mudah!
+    - 📄 **Support CSV & JSON**: Bisa pakai file Excel (save as CSV) atau JSON.
+    - 🛡️ **Validation**: Cek format otomatis, header validation, dan error reporting.
+    - ❓ **Help Guide**: Panduan format lengkap langsung di aplikasi (klik icon `?`).
+- ✅ 🖥️ **Admin Dashboard Overview**: Halaman utama admin sekarang menampilkan statistik real-time:
+    - 📊 **Total Games**: Jumlah room game yang pernah dibuat.
+    - 👥 **Active Players**: Jumlah pemain yang terdaftar.
+    - ❓ **Content Stats**: Jumlah total pertanyaan edukasi di sistem.
+- ✅ 👥 **Player Management**: List semua pemain yang terdaftar beserta statistik Win Rate mereka.
+- ✅ 🏆 **Admin Leaderboards**: Tabel Top 20 pemain terbaik (synced dengan global leaderboards).
+
+### Changed
+- UI Admin Panel lebih rapi dengan navigasi sidebar yang konsisten.
+- Improved loading states pada table data.
+
+---
+
 ## [2.3.1] - 2026-01-07
 
 ### 🛠️ Admin Panel Supercharged
@@ -537,6 +559,7 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.3.2 | 2026-01-07 | CSV/JSON Import, Admin Dashboard Stats, Player Mgmt |
 | 2.3.1 | 2026-01-07 | Admin Panel Upgrade: Image Upload, Smart Forms, Visual Selectors |
 | 2.3.0 | 2026-01-06 | Educational Mode (Quizzes & Fun Facts), Mobile Portrait UI, Star Icons |
 | 2.2.2 | 2026-01-06 | Critical Bot Fix - Double Roll & Race Condition Fixed |

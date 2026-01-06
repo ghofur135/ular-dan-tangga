@@ -113,6 +113,14 @@ export class EducationService {
         if (error) { console.error('Create Q Error:', error); return null }
         return data
     }
+    async bulkCreateQuestions(questions: Omit<EducationQuestion, 'id'>[]): Promise<boolean> {
+        const { error } = await supabase.from('education_questions').insert(questions)
+        if (error) {
+            console.error('Bulk Create Q Error:', error)
+            return false
+        }
+        return true
+    }
     async updateQuestion(id: number, updates: Partial<EducationQuestion>) {
         const { error } = await supabase.from('education_questions').update(updates).eq('id', id)
         return !error

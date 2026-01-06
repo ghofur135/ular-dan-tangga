@@ -13,8 +13,12 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { educationService } from '../../services/educationService'
+import { databaseService } from '../../services/databaseService'
+import { supabase } from '../../config/supabase'
 import * as ImagePicker from 'expo-image-picker'
 import * as ImageManipulator from 'expo-image-manipulator'
+import * as DocumentPicker from 'expo-document-picker'
+import Papa from 'papaparse'
 
 // Types
 type AdminMenu = 'dashboard' | 'players' | 'leaderboards' | 'edu_mode'
@@ -88,32 +92,110 @@ const MenuItem = ({ label, isActive, onPress }: { label: string, isActive: boole
     </Pressable>
 )
 
-const DashboardView = () => (
-    <View style={styles.viewContainer}>
-        <Text style={styles.viewTitle}>Dashboard</Text>
-        <View style={styles.card}>
-            <Text>Welcome to the Game Manager. Select a menu to get started.</Text>
+const DashboardView = () => {
+    const [stats, setStats] = useState({ rooms: 0, players: 0, questions: 0 })
+
+    useEffect(() => {
+        const loadStats = async () => {
+            const { count: rooms } = await supabase.from('game_rooms').select('*', { count: 'exact', head: true })
+            const { count: players } = await supabase.from('player_stats').select('*', { count: 'exact', head: true })
+            const { count: questions } = await supabase.from('education_questions').select('*', { count: 'exact', head: true })
+            setStats({ rooms: rooms || 0, players: players || 0, questions: questions || 0 })
+        }
+        loadStats()
+    }, [])
+
+    return (
+        <View style={styles.viewContainer}>
+            <Text style={styles.viewTitle}>Dashboard Overview</Text>
+            <View style={{ flexDirection: 'row', gap: 15, flexWrap: 'wrap', marginTop: 20 }}>
+                <StatCard title="Total Games" value={stats.rooms} icon="🎮" color="#4F46E5" />
+                <StatCard title="Active Players" value={stats.players} icon="👥" color="#059669" />
+                <StatCard title="Questions" value={stats.questions} icon="❓" color="#D97706" />
+            </View>
         </View>
+    )
+}
+
+const StatCard = ({ title, value, icon, color }: any) => (
+    <View style={[styles.card, { flex: 1, minWidth: 200, alignItems: 'center', borderLeftWidth: 4, borderLeftColor: color }]}>
+        <Text style={{ fontSize: 40 }}>{icon}</Text>
+        <Text style={{ fontSize: 32, fontWeight: 'bold', marginVertical: 5 }}>{value}</Text>
+        <Text style={{ color: '#6B7280' }}>{title}</Text>
     </View>
 )
 
-const PlayersView = () => (
-    <View style={styles.viewContainer}>
-        <Text style={styles.viewTitle}>Player Management</Text>
-        <View style={styles.card}>
-            <Text style={{ color: '#888' }}>Coming Soon: List of players and ban actions.</Text>
-        </View>
-    </View>
-)
+const PlayersView = () => {
+    const [players, setPlayers] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
 
-const LeaderboardsView = () => (
-    <View style={styles.viewContainer}>
-        <Text style={styles.viewTitle}>Leaderboards</Text>
-        <View style={styles.card}>
-            <Text style={{ color: '#888' }}>Coming Soon: Global top scores management.</Text>
+    useEffect(() => {
+        const fetchPlayers = async () => {
+            const { data } = await supabase.from('player_stats').select('*').order('total_games_played', { ascending: false }).limit(50)
+            if (data) setPlayers(data)
+            setLoading(false)
+        }
+        fetchPlayers()
+    }, [])
+
+    return (
+        <View style={styles.viewContainer}>
+            <Text style={styles.viewTitle}>Registered Players ({players.length})</Text>
+            <View style={[styles.card, { flex: 1, padding: 0, overflow: 'hidden' }]}>
+                <ScrollView>
+                    <View style={{ flexDirection: 'row', backgroundColor: '#F3F4F6', padding: 12, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
+                        <Text style={{ flex: 1, fontWeight: 'bold' }}>User ID</Text>
+                        <Text style={{ width: 80, fontWeight: 'bold', textAlign: 'center' }}>Games</Text>
+                        <Text style={{ width: 80, fontWeight: 'bold', textAlign: 'center' }}>Win Rate</Text>
+                    </View>
+                    {loading ? <Text style={{ padding: 20 }}>Loading...</Text> : players.map((p, i) => (
+                        <View key={p.id} style={{ flexDirection: 'row', padding: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                            <Text style={{ flex: 1, fontSize: 12, fontFamily: 'monospace' }} numberOfLines={1}>{p.user_id}</Text>
+                            <Text style={{ width: 80, textAlign: 'center' }}>{p.total_games_played}</Text>
+                            <Text style={{ width: 80, textAlign: 'center' }}>{Math.round((p.total_games_won / (p.total_games_played || 1)) * 100)}%</Text>
+                        </View>
+                    ))}
+                </ScrollView>
+            </View>
         </View>
-    </View>
-)
+    )
+}
+
+const LeaderboardsView = () => {
+    const [leaders, setLeaders] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        const fetch = async () => {
+            const data = await databaseService.getLeaderboard(20)
+            setLeaders(data)
+            setLoading(false)
+        }
+        fetch()
+    }, [])
+
+    return (
+        <View style={styles.viewContainer}>
+            <Text style={styles.viewTitle}>Top 20 Leaderboards</Text>
+            <View style={[styles.card, { flex: 1, padding: 0, overflow: 'hidden' }]}>
+                <ScrollView>
+                    <View style={{ flexDirection: 'row', backgroundColor: '#fff', padding: 12, borderBottomWidth: 2, borderBottomColor: '#4F46E5' }}>
+                        <Text style={{ width: 50, fontWeight: 'bold' }}>Rank</Text>
+                        <Text style={{ flex: 1, fontWeight: 'bold' }}>Player</Text>
+                        <Text style={{ width: 80, fontWeight: 'bold', textAlign: 'center' }}>Wins</Text>
+                    </View>
+                    {loading ? <Text style={{ padding: 20 }}>Loading...</Text> : leaders.map((l) => (
+                        <View key={l.id} style={{ flexDirection: 'row', padding: 15, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', alignItems: 'center' }}>
+                            <View style={{ width: 50, height: 30, justifyContent: 'center' }}><Text style={{ fontWeight: 'bold', fontSize: 16, color: l.rank <= 3 ? '#D97706' : '#374151' }}>#{l.rank}</Text></View>
+                            <Text style={{ flex: 1, fontSize: 16, fontWeight: '500' }}>{l.username || 'Unknown'}</Text>
+                            <Text style={{ width: 80, textAlign: 'center', fontWeight: 'bold', color: '#4F46E5' }}>{l.totalGamesWon} 🏆</Text>
+                        </View>
+                    ))}
+                </ScrollView>
+            </View>
+        </View>
+    )
+}
 
 // === EDU MODE VIEW (Complex) ===
 const EduModeView = () => {
@@ -431,6 +513,58 @@ const EduQuestionsManager = () => {
         ])
     }
 
+    const handleImport = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: ['application/json', 'text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel'],
+                copyToCacheDirectory: true
+            })
+            if (result.canceled) return
+
+            const file = result.assets[0]
+            if (!file.uri) return
+
+            const response = await fetch(file.uri)
+            const text = await response.text()
+
+            let questionsToImport: any[] = []
+
+            if (file.name.endsWith('.json')) {
+                try {
+                    questionsToImport = JSON.parse(text)
+                } catch (e) { return Alert.alert('Error', 'Invalid JSON format') }
+            } else if (file.name.endsWith('.csv')) {
+                const parseResult = Papa.parse(text, { header: true, skipEmptyLines: true })
+                if (parseResult.errors.length > 0) return Alert.alert('Error', 'Invalid CSV format')
+
+                questionsToImport = parseResult.data.map((row: any) => {
+                    const opts = row.options ? row.options.split(';').map((s: string) => s.trim()) : []
+                    return {
+                        question: row.question,
+                        options: opts,
+                        correct_index: parseInt(row.correct_index),
+                        difficulty: row.difficulty,
+                        category_id: parseInt(row.category_id),
+                        image_url: row.image_url || undefined
+                    }
+                })
+            } else {
+                return Alert.alert('Error', 'Unsupported file type. Use JSON or CSV.')
+            }
+
+            if (!Array.isArray(questionsToImport) || questionsToImport.length === 0) return Alert.alert('Error', 'No valid data found.')
+
+            setIsLoading(true)
+            const success = await educationService.bulkCreateQuestions(questionsToImport)
+            setIsLoading(false)
+
+            if (success) { Alert.alert('Success', `Imported ${questionsToImport.length} questions!`); fetchData() }
+            else Alert.alert('Error', 'Failed to import.')
+        } catch (e) {
+            console.error(e); Alert.alert('Error', 'Import failed.')
+        }
+    }
+
     const getCatName = (id: number) => categories.find(c => c.id === id)?.title || `ID:${id}`
 
     const paginatedItems = questions.slice(page * itemsPerPage, (page + 1) * itemsPerPage)
@@ -441,16 +575,61 @@ const EduQuestionsManager = () => {
     const { width } = useWindowDimensions()
     const isMobile = width < 768
     const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false)
+    const [importHelpVisible, setImportHelpVisible] = useState(false)
 
     return (
         <View style={{ flex: 1 }}>
             <View style={styles.actionRow}>
                 <Text style={styles.subHeader}>Questions</Text>
-                <Pressable style={styles.addButton} onPress={() => openModal('add')}>
-                    <Text style={{ fontSize: 18 }}>➕</Text>
-                    <Text style={styles.addButtonText}>Add New</Text>
-                </Pressable>
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                    <Pressable onPress={() => setImportHelpVisible(true)} style={{ padding: 8, backgroundColor: '#E5E7EB', borderRadius: 8 }}>
+                        <Text style={{ fontSize: 20 }}>❓</Text>
+                    </Pressable>
+                    <Pressable style={[styles.addButton, { backgroundColor: '#4B5563' }]} onPress={handleImport}>
+                        <Text style={{ fontSize: 18 }}>📥</Text>
+                        {!isMobile && <Text style={styles.addButtonText}>Import CSV/JSON</Text>}
+                    </Pressable>
+                    <Pressable style={styles.addButton} onPress={() => openModal('add')}>
+                        <Text style={{ fontSize: 18 }}>➕</Text>
+                        <Text style={styles.addButtonText}>Add New</Text>
+                    </Pressable>
+                </View>
             </View>
+
+            <Modal visible={importHelpVisible} transparent animationType="fade">
+                <View style={customStyles.modalOverlay}>
+                    <View style={[customStyles.modalContent, { maxWidth: 500 }]}>
+                        <Text style={customStyles.modalTitle}>Import Format Guide</Text>
+                        <ScrollView style={{ maxHeight: 400 }}>
+                            <Text style={{ fontWeight: 'bold', marginTop: 10 }}>CSV Format:</Text>
+                            <Text style={{ marginBottom: 4, fontSize: 13 }}>Header row is required. Options separated by <Text style={{ fontWeight: 'bold', color: 'red' }}>;</Text> (semicolon).</Text>
+                            <View style={{ backgroundColor: '#f3f4f6', padding: 10, borderRadius: 6, marginVertical: 5, borderWidth: 1, borderColor: '#ddd' }}>
+                                <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#374151' }}>
+                                    question,options,correct_index,difficulty,category_id{'\n'}
+                                    Apa ibukota Jabar?,Bandung;Jakarta;Subang,0,easy,1{'\n'}
+                                    1 + 1 = ?,10;2;5,1,easy,2
+                                </Text>
+                            </View>
+
+                            <Text style={{ fontWeight: 'bold', marginTop: 20 }}>JSON Format:</Text>
+                            <View style={{ backgroundColor: '#f3f4f6', padding: 10, borderRadius: 6, marginVertical: 5, borderWidth: 1, borderColor: '#ddd' }}>
+                                <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#374151' }}>
+                                    [{'{'}{'\n'}
+                                    "question": "Question text", {'\n'}
+                                    "options": ["A", "B", "C"], {'\n'}
+                                    "correct_index": 0, {'\n'}
+                                    "difficulty": "easy", {'\n'}
+                                    "category_id": 1 {'\n'}
+                                    {'}'}]
+                                </Text>
+                            </View>
+                        </ScrollView>
+                        <Pressable onPress={() => setImportHelpVisible(false)} style={[customStyles.btnCancel, { marginTop: 20, alignSelf: 'flex-end' }]}>
+                            <Text>Close</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
 
             {isLoading ? <Text>Loading...</Text> : (
                 <>
