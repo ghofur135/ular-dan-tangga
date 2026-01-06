@@ -10,7 +10,8 @@ Game ular tangga klasik yang dibangun dengan React Native + Expo. Mainkan melawa
 ## ✨ Fitur
 
 ### 🎮 Game Modes
-- **Single Player vs Bot** - Main melawan AI bot
+- **Single Player vs Bot** - Main melawan AI bot (Normal Mode)
+- **Educational Mode** - Main sambil belajar! Kuis di ular/tangga dan fakta unik di kotak spesial.
 - **Multiplayer Online** - Main dengan teman via room code
 
 ### 🎵 Sound Effects & Audio
@@ -37,12 +38,23 @@ Game ular tangga klasik yang dibangun dengan React Native + Expo. Mainkan melawa
 - 💫 Glow animation dengan efek semi-transparan
 - 🎯 Text "🎲 GILIRAN KAMU!" saat giliran player
 - 🌟 Splash screen full layar saat pertama buka aplikasi
+- 📱 **Mobile Enhanced**: Tampilan "Pilih Mode Game" dengan popup menu yang rapi di mode portrait
+- ⭐ **Fun Fact Zones**: Ikon bintang permanen penanda lokasi fakta unik di papan
+
 
 ### 🌐 Multiplayer Features
 - 🔑 Room code system untuk invite teman
 - 👥 Real-time sync via Supabase
 - 🗑️ Auto-cleanup room setelah game selesai
 - 📤 Share room code functionality
+
+### 🎓 Educational Mode
+Mode khusus untuk belajar sambil bermain:
+- **Quiz on Snake 🐍**: Jawab pertanyaan benar untuk **batal turun** ular!
+- **Quiz on Ladder 🪜**: Jawab pertanyaan benar untuk **bisa naik** tangga!
+- **Fun Facts ⭐**: Kotak bertanda bintang berisi fakta unik pengetahuan umum.
+- **200+ Questions**: Database pertanyaan edukatif dari berbagai kategori (Matematika, Sains, Sejarah, Umum).
+
 
 ## 📱 Build APK
 
