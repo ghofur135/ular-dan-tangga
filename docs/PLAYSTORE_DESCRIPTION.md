@@ -115,3 +115,21 @@ What are you waiting for? **Download now** and enjoy the modern twist of Snake &
 
 ## Keywords
 snake and ladder, board game, educational game, quiz game, multiplayer online, family game, kids game, casual game, snakes ladders, classic board game.
+
+---
+
+## What's New (Release Notes) - v2.3.0
+
+### Bahasa Indonesia 🇮🇩
+**Update Besar: Mode Edukasi Telah Hadir!** 🎓
+*   **Mode Edukasi**: Main sambil belajar! Jawab kuis di ular/tangga dan temukan fakta unik.
+*   **Fun Facts**: Ikon bintang ⭐ di papan menyimpan pengetahuan seru.
+*   **Tampilan Baru**: Tombol "Pilih Mode Game" yang lebih rapi dan modern.
+*   **200+ Pertanyaan Baru**: Database kuis diperbarui dengan ratusan soal menarik.
+
+### English 🇺🇸
+**Big Update: Educational Mode is Here!** 🎓
+*   **Educational Mode**: Play & Learn! Quizzes on snakes/ladders and fun knowledge facts.
+*   **Fun Facts**: Star icons ⭐ on the board reveal interesting trivia.
+*   **Fresh Look**: Improved "Select Game Mode" UI for better experience.
+*   **200+ New Questions**: Updated quiz database with hundreds of exciting questions.
