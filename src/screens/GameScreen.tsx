@@ -605,14 +605,11 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           setShowEducationModal(true)
           return
         }
-      } else if (prediction.moveType === 'normal' && Math.random() < 0.3) {
-        // 30% chance for Fun Fact on normal moves
+      } else if (prediction.moveType === 'normal' && CUSTOM_BOARD_CONFIG.funFacts && CUSTOM_BOARD_CONFIG.funFacts.includes(prediction.position)) {
+        // Fun Fact Spot!
         const fact = await educationService.getRandomFact()
         if (fact) {
-          // Highlight the square with glow effect before showing fact
-          setHighlightedSquare(prediction.position)
-          await new Promise(resolve => setTimeout(resolve, 1500)) // Blink for 1.5s
-          setHighlightedSquare(null)
+          // No delay needed as visual cue is already on board
 
           setPendingMove({ result, prediction })
           setEducationType('fact')

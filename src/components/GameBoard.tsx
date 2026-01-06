@@ -60,22 +60,37 @@ const getSquareNumber = (row: number, col: number): number => {
   return actualRow * BOARD_SIZE + actualCol + 1
 }
 
-const BlinkingSquare = ({ size }: { size: number }) => {
-  const opacity = useRef(new Animated.Value(0)).current
+const BlinkingStar = ({ size }: { size: number }) => {
+  const opacity = useRef(new Animated.Value(0.3)).current
+  const scale = useRef(new Animated.Value(0.8)).current
 
   useEffect(() => {
     const blink = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 0.8,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.2,
-          duration: 400,
-          useNativeDriver: true,
-        }),
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0.3,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 1.2,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 0.8,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
       ])
     )
     blink.start()
@@ -88,14 +103,16 @@ const BlinkingSquare = ({ size }: { size: number }) => {
         position: 'absolute',
         width: size,
         height: size,
-        backgroundColor: '#FCD34D', // Gold/Yellow glow
+        justifyContent: 'center',
+        alignItems: 'center',
         opacity: opacity,
-        borderRadius: 4,
-        borderWidth: 2,
-        borderColor: '#F59E0B',
+        transform: [{ scale: scale }],
         zIndex: 5,
+        // No background color, just the icon
       }}
-    />
+    >
+      <Text style={{ fontSize: size * 0.6 }}>⭐</Text>
+    </Animated.View>
   )
 }
 
@@ -133,7 +150,8 @@ export default function GameBoard({ players, boardTheme: propBoardTheme, highlig
       for (let col = 0; col < BOARD_SIZE; col++) {
         const squareNum = getSquareNumber(row, col)
         const isWinSquare = squareNum === 100
-        const isHighlighted = squareNum === highlightedSquare
+        const isFunFactSquare = CUSTOM_BOARD_CONFIG.funFacts && CUSTOM_BOARD_CONFIG.funFacts.includes(squareNum)
+        // const isHighlighted = squareNum === highlightedSquare // Not using blink anymore per request
 
         // Get players on this square (considering animation position)
         const playersOnSquare = players.filter(
@@ -151,8 +169,20 @@ export default function GameBoard({ players, boardTheme: propBoardTheme, highlig
               },
             ]}
           >
-            {/* Blinking Highlight if active */}
-            {isHighlighted && <BlinkingSquare size={CELL_SIZE} />}
+            {/* STatic Star for Fun Fact */}
+            {isFunFactSquare && (
+              <View style={{
+                position: 'absolute',
+                width: CELL_SIZE,
+                height: CELL_SIZE,
+                justifyContent: 'center',
+                alignItems: 'center',
+                opacity: 0.9,
+                zIndex: 5
+              }}>
+                <Text style={{ fontSize: CELL_SIZE * 0.4 }}>⭐</Text>
+              </View>
+            )}
 
             {/* Square number for debugging - uncomment to see numbers */}
             {/* <Text style={[styles.debugNumber, { fontSize: CELL_SIZE * 0.2 }]}>
