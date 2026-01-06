@@ -6,6 +6,28 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.3.1] - 2026-01-07
+
+### 🛠️ Admin Panel Supercharged
+
+### Added
+- ✅ 📸 **Image Upload Support**: Admin sekarang bisa upload gambar untuk pertanyaan!
+    - 🔄 **Auto-Compress**: Gambar > 1MB otomatis dikompres sebelum upload untuk hemat storage dan kuota.
+    - 🖼️ **Live Preview**: Preview gambar muncul langsung di form dan di list pertanyaan.
+    - ☁️ **Supabase Storage**: Terintegrasi dengan bucket `education_assets`.
+- ✅ 📝 **Smart Question Form**: Form input pertanyaan yang jauh lebih canggih.
+    - 🔘 **Category Picker**: Pilih kategori lewat Chip (Mobile) atau Dropdown (Desktop). Tidak perlu ingat ID lagi!
+    - ✅ **Visual Answer Selector**: Pilih jawaban benar cukup dengan klik tombol opsi. Tidak perlu hitung index manual.
+    - ⚡ **Difficulty Buttons**: Tombol cepat untuk set tingkat kesulitan (Easy/Medium/Hard).
+- ✅ 📊 **Flexible Pagination**: Admin bisa atur jumlah data per halaman (10, 20, 50, atau 100 row).
+- ✅ 👁️ **Detail View**: Mode "Lihat Detail" (Read-only) tanpa risiko salah edit.
+
+### Changed
+- **Questions List**: Sekarang menampilkan preview jawaban benar (hijau) langsung di daftar agar admin tidak perlu buka detail satu per satu.
+- **Form UX**: Validasi input yang lebih baik dan feedback visual saat memilih jawaban benar.
+
+---
+
 ## [2.3.0] - 2026-01-06
 
 ### 🎓 Educational Mode & UI Enhancements
@@ -515,6 +537,7 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.3.1 | 2026-01-07 | Admin Panel Upgrade: Image Upload, Smart Forms, Visual Selectors |
 | 2.3.0 | 2026-01-06 | Educational Mode (Quizzes & Fun Facts), Mobile Portrait UI, Star Icons |
 | 2.2.2 | 2026-01-06 | Critical Bot Fix - Double Roll & Race Condition Fixed |
 | 2.2.1 | 2026-01-02 | Critical Bot Fix - Continuous Dice Rolling Bug |
