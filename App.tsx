@@ -45,7 +45,7 @@ function CustomSplashScreen({
       setIsAnimationStarted(true)
       // Minimum display time check could go here if needed,
       // but 'isAppReady' usually includes our artificial delay.
-      
+
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 500,
@@ -70,6 +70,22 @@ function CustomSplashScreen({
 /**
  * App - Main entry point for Snake & Ladder game
  */
+import * as Linking from 'expo-linking'
+
+const linking = {
+  prefixes: [Linking.createURL('/')],
+  config: {
+    screens: {
+      Home: '',
+      AdminLogin: 'managers-game',
+      AdminDashboard: 'admin-dashboard',
+      Game: 'game',
+      Leaderboard: 'leaderboard',
+      Lobby: 'lobby'
+    },
+  },
+}
+
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false)
   const [showSplash, setShowSplash] = useState(true)
@@ -104,7 +120,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <View style={{ flex: 1 }}>
-        <NavigationContainer>
+        <NavigationContainer linking={linking}>
           <StatusBar style="auto" />
           <GameNavigator />
         </NavigationContainer>

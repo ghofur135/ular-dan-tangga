@@ -84,6 +84,98 @@ export class EducationService {
             facts: factsRes.data || []
         }
     }
+
+    // === ADMIN METHODS ===
+
+    // Categories
+    async createCategory(category: Omit<EducationCategory, 'id'>): Promise<EducationCategory | null> {
+        const { data, error } = await supabase.from('education_categories').insert(category).select().single()
+        if (error) { console.error('Create Cat Error:', error); return null }
+        return data
+    }
+    async updateCategory(id: number, updates: Partial<EducationCategory>) {
+        const { error } = await supabase.from('education_categories').update(updates).eq('id', id)
+        return !error
+    }
+    async deleteCategory(id: number) {
+        const { error } = await supabase.from('education_categories').delete().eq('id', id)
+        return !error
+    }
+
+    // Questions
+    async getQuestions(): Promise<EducationQuestion[]> {
+        const { data, error } = await supabase.from('education_questions').select('*').order('id', { ascending: false })
+        if (error) return []
+        return data
+    }
+    async createQuestion(question: Omit<EducationQuestion, 'id'>): Promise<EducationQuestion | null> {
+        const { data, error } = await supabase.from('education_questions').insert(question).select().single()
+        if (error) { console.error('Create Q Error:', error); return null }
+        return data
+    }
+    async bulkCreateQuestions(questions: Omit<EducationQuestion, 'id'>[]): Promise<boolean> {
+        const { error } = await supabase.from('education_questions').insert(questions)
+        if (error) {
+            console.error('Bulk Create Q Error:', error)
+            return false
+        }
+        return true
+    }
+    async updateQuestion(id: number, updates: Partial<EducationQuestion>) {
+        const { error } = await supabase.from('education_questions').update(updates).eq('id', id)
+        return !error
+    }
+    async deleteQuestion(id: number) {
+        const { error } = await supabase.from('education_questions').delete().eq('id', id)
+        return !error
+    }
+
+    // Facts
+    async getFacts(): Promise<EducationFact[]> {
+        const { data, error } = await supabase.from('education_facts').select('*').order('id', { ascending: false })
+        if (error) return []
+        return data
+    }
+    async createFact(fact: Omit<EducationFact, 'id'>): Promise<EducationFact | null> {
+        const { data, error } = await supabase.from('education_facts').insert(fact).select().single()
+        if (error) { console.error('Create Fact Error:', error); return null }
+        return data
+    }
+    async updateFact(id: number, updates: Partial<EducationFact>) {
+        const { error } = await supabase.from('education_facts').update(updates).eq('id', id)
+        return !error
+    }
+    async deleteFact(id: number) {
+        const { error } = await supabase.from('education_facts').delete().eq('id', id)
+        return !error
+    }
+
+    // Storage
+    async uploadQuestionImage(imageUri: string): Promise<string | null> {
+        try {
+            const response = await fetch(imageUri)
+            const blob = await response.blob()
+            const fileName = `questions/${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`
+
+            const { data, error } = await supabase.storage
+                .from('education_assets')
+                .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true })
+
+            if (error) {
+                console.error('Upload error:', error)
+                return null
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('education_assets')
+                .getPublicUrl(fileName)
+
+            return publicUrl
+        } catch (e) {
+            console.error('Upload exception:', e)
+            return null
+        }
+    }
 }
 
 export const educationService = new EducationService()

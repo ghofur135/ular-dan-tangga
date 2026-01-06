@@ -7,6 +7,9 @@ import LobbyScreen from '../screens/LobbyScreen'
 import OnlineGameScreen from '../screens/OnlineGameScreen'
 import { OnlineRoom, OnlinePlayer } from '../services/multiplayerService'
 
+import AdminLoginScreen from '../screens/admin/AdminLoginScreen'
+import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen'
+
 // Define navigation param types
 export type RootStackParamList = {
   Home: undefined
@@ -19,6 +22,8 @@ export type RootStackParamList = {
     players?: OnlinePlayer[]
     isHost: boolean
   }
+  AdminLogin: undefined
+  AdminDashboard: undefined
 }
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
@@ -52,6 +57,19 @@ export default function GameNavigator() {
           headerShown: false,
         }}
       />
+
+      {/* Admin Screens */}
+      <Stack.Screen
+        name="AdminLogin"
+        component={AdminLoginScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AdminDashboard"
+        component={AdminDashboardScreen}
+        options={{ headerShown: false }}
+      />
+
       <Stack.Screen
         name="Game"
         component={GameScreen}

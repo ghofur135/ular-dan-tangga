@@ -13,6 +13,7 @@ export interface EducationQuestion {
     options: string[]
     correct_index: number
     difficulty: EducationDifficulty
+    image_url?: string
 }
 
 export interface EducationFact {
