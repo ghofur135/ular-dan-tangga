@@ -6,6 +6,26 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.3.0] - 2026-01-06
+
+### 🎓 Educational Mode & UI Enhancements
+
+### Added
+- ✅ 🧠 **Educational Mode**: Mode permainan baru!
+    - 🐍 **Quiz on Snake**: Jawab pertanyaan benar untuk **batal turun** ular!
+    - 🪜 **Quiz on Ladder**: Jawab pertanyaan benar untuk **bisa naik** tangga!
+    - ⭐ **Fun Facts**: Kotak bertanda bintang berisi fakta unik dunia (Sains, Sejarah, dsb).
+- ✅ 📱 **Mobile Portrait UX**: Tombol "Pilih Mode Game" baru dengan popup modal (Bottom Sheet) di tampilan mobile portrait.
+- ✅ 🌟 **Star Icons**: Tanda bintang permanen di papan permainan untuk lokasi Fun Facts.
+- ✅ 🖱️ **Expanded Database**: Menambahkan 200+ pertanyaan dan fakta unik ke database Supabase.
+
+### Changed
+- **HomeScreen**: Menggabungkan tombol mode game menjadi satu tombol "Pilih Mode Game" khusus di mobile portrait agar lebih rapi.
+- **GameBoard**: Menambahkan rendering ikon bintang statis pada kotak-kotak tertentu.
+- **Logic**: Fun Fact sekarang pasti muncul (chance 100%) jika mendarat di kotak berbintang.
+
+---
+
 ## [2.2.2] - 2026-01-06
 
 ### 🐛 Critical Bot Fix - Double Roll Bug Resolved
@@ -495,6 +515,8 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.3.0 | 2026-01-06 | Educational Mode (Quizzes & Fun Facts), Mobile Portrait UI, Star Icons |
+| 2.2.2 | 2026-01-06 | Critical Bot Fix - Double Roll & Race Condition Fixed |
 | 2.2.1 | 2026-01-02 | Critical Bot Fix - Continuous Dice Rolling Bug |
 | 2.2.0 | 2026-01-02 | Game Balance & Power Up Rules (Zone Restrictions) |
 | 2.1.0 | 2026-01-02 | Android Splash Screen Fix |
