@@ -9,6 +9,7 @@ import { calculateNewPosition, getNextPlayer, checkWin, createMoveEvent, checkCo
 interface GameStore {
   // State
   selectedBoard: string
+  isEducationMode: boolean
   currentRoom: GameRoom | null
   players: Player[]
   moveHistory: MoveEvent[]
@@ -31,6 +32,7 @@ interface GameStore {
 
   // Actions
   setSelectedBoard: (boardId: string) => void
+  setEducationMode: (enabled: boolean) => void
   updateStats: (isWin: boolean, moves: number) => Promise<void>
   login: (username: string, pin: string, avatar: number) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
@@ -50,7 +52,7 @@ interface GameStore {
   applyCollision: (collision: CollisionEvent) => void
 
   // Game Actions
-  processMove: (playerId: string, diceRoll: number, options?: { ignoreSnakes?: boolean }) => { position: number; moveType: string; collision?: CollisionEvent | null } | null
+  processMove: (playerId: string, diceRoll: number, options?: { ignoreSnakes?: boolean; ignoreLadders?: boolean }) => { position: number; moveType: string; collision?: CollisionEvent | null } | null
   teleportPlayer: (playerId: string) => { position: number; collision?: CollisionEvent | null } | null
   endPlayerTurn: () => void
   recordMove: (move: MoveEvent) => void
@@ -101,6 +103,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isAuthenticated: false,
 
   setSelectedBoard: (boardId) => set({ selectedBoard: boardId }),
+
+  // Education Mode
+  isEducationMode: false,
+  setEducationMode: (enabled: boolean) => set({ isEducationMode: enabled }),
 
   // Auth
   updateStats: async (isWin, moves) => {
@@ -347,7 +353,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       player.position,
       diceRoll,
       options.ignoreSnakes ? {} : CUSTOM_BOARD_CONFIG.snakes,
-      CUSTOM_BOARD_CONFIG.ladders
+      options.ignoreLadders ? {} : CUSTOM_BOARD_CONFIG.ladders
     )
 
     console.log(`[Dice Roll] Player ${player.name} rolled ${diceRoll}. Pos: ${player.position} -> ${result.position} (${result.moveType})`)
@@ -458,14 +464,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const currentPlayer = state.players[state.currentPlayerIndex]
     console.log(`[End Turn] Checking for ${currentPlayer?.name}. Bonus: ${state.hasBonusRoll}, Dice: ${currentPlayer?.diceResult}`)
     const actuallyRolledSix = currentPlayer?.diceResult === 6
-    
+
     // CRITICAL FIX: If hasBonusRoll is true but player didn't actually roll a 6, reset it immediately
     // This is especially important for bot turns to prevent multiple rolls
     if (state.hasBonusRoll && !actuallyRolledSix) {
       console.log('Fixing inconsistent hasBonusRoll state - player did not roll 6')
       set({ hasBonusRoll: false })
     }
-    
+
     // If player has bonus roll (rolled a 6), don't advance to next player
     if (state.hasBonusRoll && actuallyRolledSix) {
       // Just clear the bonus roll flag but keep the same player's turn

@@ -43,10 +43,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [selectedAvatar, setSelectedAvatar] = useState(1)
   const [isMusicOn, setIsMusicOn] = useState(true)
 
-  // Custom Alert State
   const [alertVisible, setAlertVisible] = useState(false)
   const [alertConfig, setAlertConfig] = useState({ title: '', message: '' })
   const scaleAnim = useRef(new Animated.Value(0)).current
+
+  // Responsive Check
+  const { width, height } = Dimensions.get('window') // useWindowDimensions is better for hooks, but we imported Dimensions. Let's stick to Dimensions or upgrade.
+  // Actually, let's use useWindowDimensions hook if available or just Dimensions for now since it's cleaner in this file context structure.
+  // Wait, component is a function, so hooks are fine.
+
+  const isMobilePortrait = width < 768 && height > width
+  const [showGameModeModal, setShowGameModeModal] = useState(false)
 
   const { createGameRoom, login, logout, checkSession, isAuthenticated, currentUser, user, selectedBoard, setSelectedBoard } = useGameStore()
 
@@ -156,6 +163,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     if (!success) return
 
     await stopBackgroundMusic()
+
+    // Default: Disable Education Mode for normal quick play (unless set elsewhere)
+    // Actually, distinct buttons handle the setting, but safe to reset here if we want strictly 'Normal' vs 'Edu'.
+    // However, the button handler logic I just added sets it TRUE. 
+    // The normal button should set it FALSE.
+    // Let's modify handleQuickPlay to accept an argument or handle it before calling.
+
+    // Better: split logic or updated handleQuickPlay.
+    // Since I can't change the function signature easily in this tool call without replacing the whole function block,
+    // I will let the button handler manage the state BEFORE calling this function.
+
     createGameRoom(
       `Game-${Date.now().toString(36)}`,
       playerName.trim(),
@@ -311,35 +329,134 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* Game Mode Selection Modal (Mobile Portrait) */}
+      <Modal
+        transparent
+        visible={showGameModeModal}
+        animationType="slide"
+        onRequestClose={() => setShowGameModeModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowGameModeModal(false)}>
+          <View style={styles.bottomSheetContent}>
+            <View style={styles.bottomSheetHandle} />
+            <Text style={styles.bottomSheetTitle}>Pilih Mode Permainan</Text>
+
+            <View style={styles.modeList}>
+              <Pressable
+                style={({ pressed }) => [styles.modeItem, styles.modeItemBot, pressed && styles.btnPressed]}
+                onPress={() => {
+                  setShowGameModeModal(false)
+                  useGameStore.getState().setEducationMode(false)
+                  handleQuickPlay()
+                }}
+              >
+                <Text style={styles.modeEmoji}>🤖</Text>
+                <View style={styles.modeTextContainer}>
+                  <Text style={styles.modeTitle}>VS Bot (Normal)</Text>
+                  <Text style={styles.modeDesc}>Main santai lawan komputer</Text>
+                </View>
+                <Text style={styles.modeArrow}>→</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [styles.modeItem, styles.modeItemEdu, pressed && styles.btnPressed]}
+                onPress={() => {
+                  setShowGameModeModal(false)
+                  useGameStore.getState().setEducationMode(true)
+                  handleQuickPlay()
+                }}
+              >
+                <Text style={styles.modeEmoji}>🎓</Text>
+                <View style={styles.modeTextContainer}>
+                  <Text style={styles.modeTitle}>Mode Edukasi</Text>
+                  <Text style={styles.modeDesc}>Main sambil belajar kuis & fakta</Text>
+                </View>
+                <Text style={styles.modeArrow}>→</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [styles.modeItem, styles.modeItemMulti, pressed && styles.btnPressed]}
+                onPress={() => {
+                  setShowGameModeModal(false)
+                  handleNavigateLobby()
+                }}
+              >
+                <Text style={styles.modeEmoji}>🌏</Text>
+                <View style={styles.modeTextContainer}>
+                  <Text style={styles.modeTitle}>Multiplayer Online</Text>
+                  <Text style={styles.modeDesc}>Main bareng teman di lobby</Text>
+                </View>
+                <Text style={styles.modeArrow}>→</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* Bottom Action Bar - Always visible */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
-        <View style={styles.buttonRow}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.btnSecondary,
-              pressed && styles.btnPressed,
-            ]}
-            onPress={handleQuickPlay}
-          >
-            <Text style={styles.btnSecondaryText}>🤖 VS Bot</Text>
-          </Pressable>
+        {isMobilePortrait ? (
+          /* Mobile Portrait: Single "Choose Mode" Button */
+          <View style={styles.buttonRow}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.btnPrimary,
+                pressed && styles.btnPressed,
+              ]}
+              onPress={() => setShowGameModeModal(true)}
+            >
+              <Text style={styles.btnPrimaryText}>🎮 Pilih Mode Game</Text>
+            </Pressable>
+          </View>
+        ) : (
+          /* Tablet/Desktop/Landscape: Full Buttons Row */
+          <View style={styles.buttonRow}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.btnSecondary,
+                pressed && styles.btnPressed,
+              ]}
+              onPress={() => {
+                useGameStore.getState().setEducationMode(false)
+                handleQuickPlay()
+              }}
+            >
+              <Text style={styles.btnSecondaryText}>🤖 VS Bot</Text>
+            </Pressable>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.actionButton,
-              styles.btnPrimary,
-              pressed && styles.btnPressed,
-            ]}
-            onPress={handleNavigateLobby}
-          >
-            {isLoading ? (
-              <Text style={styles.btnPrimaryText}>Loading...</Text>
-            ) : (
-              <Text style={styles.btnPrimaryText}>🌏 Multiplayer</Text>
-            )}
-          </Pressable>
-        </View>
+            {/* Edu Mode Button */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.btnEducation,
+                pressed && styles.btnPressed,
+              ]}
+              onPress={() => {
+                useGameStore.getState().setEducationMode(true)
+                handleQuickPlay()
+              }}
+            >
+              <Text style={styles.btnEducationText}>🎓 Edu Mode</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionButton,
+                styles.btnPrimary,
+                pressed && styles.btnPressed,
+              ]}
+              onPress={handleNavigateLobby}
+            >
+              {isLoading ? (
+                <Text style={styles.btnPrimaryText}>Loading...</Text>
+              ) : (
+                <Text style={styles.btnPrimaryText}>🌏 Multiplayer</Text>
+              )}
+            </Pressable>
+          </View>
+        )}
         <Text style={styles.versionText}>v1.0.0 • Online & Offline</Text>
       </View>
     </View>
@@ -569,6 +686,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  btnEducation: {
+    backgroundColor: '#E0F7FA', // Light Cyan/Blue
+    borderWidth: 2,
+    borderColor: '#00BCD4',
+    flex: 1,
+  },
+  btnEducationText: {
+    color: '#0097A7',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
   versionText: {
     textAlign: 'center',
     fontSize: 11,
@@ -640,5 +768,80 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontWeight: 'bold',
     fontSize: 12,
+  },
+  // Bottom Sheet / Game Mode Modal Styles
+  bottomSheetContent: {
+    backgroundColor: 'white',
+    padding: 24,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    width: '100%',
+    position: 'absolute',
+    bottom: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 20,
+    paddingBottom: 40,
+  },
+  bottomSheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  bottomSheetTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1F2937',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modeList: {
+    gap: 12,
+  },
+  modeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  modeItemBot: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+  },
+  modeItemEdu: {
+    backgroundColor: '#E0F7FA',
+    borderColor: '#B2EBF2',
+  },
+  modeItemMulti: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#DCFCE7',
+  },
+  modeEmoji: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  modeTextContainer: {
+    flex: 1,
+  },
+  modeTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  modeDesc: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  modeArrow: {
+    fontSize: 20,
+    color: '#9CA3AF',
+    fontWeight: 'bold',
   },
 })
