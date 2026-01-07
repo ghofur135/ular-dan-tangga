@@ -18,6 +18,7 @@ interface EducationModalProps {
     type: 'quiz' | 'fact'
     data: EducationQuestion | EducationFact | null
     onClose: (success: boolean) => void // success is true if answer correct or just closing fact
+    autoCloseDuration?: number
 }
 
 export default function EducationModal({
@@ -25,6 +26,7 @@ export default function EducationModal({
     type,
     data,
     onClose,
+    autoCloseDuration,
 }: EducationModalProps) {
     const [scale] = useState(new Animated.Value(0))
     const [opacity] = useState(new Animated.Value(0))
@@ -59,6 +61,15 @@ export default function EducationModal({
             }).start(() => scale.setValue(0))
         }
     }, [visible])
+
+    useEffect(() => {
+        if (visible && autoCloseDuration) {
+            const timer = setTimeout(() => {
+                onClose(true)
+            }, autoCloseDuration)
+            return () => clearTimeout(timer)
+        }
+    }, [visible, autoCloseDuration])
 
     const handleOptionPress = (index: number) => {
         if (showResult || type !== 'quiz' || !data) return
