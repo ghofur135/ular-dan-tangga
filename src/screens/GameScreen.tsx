@@ -606,6 +606,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           return
         }
 
+      }
     }
 
     const moveResult = processMove(currentPlayerId, result, { ignoreSnakes })
