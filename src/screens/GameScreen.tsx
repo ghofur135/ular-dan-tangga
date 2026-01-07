@@ -611,7 +611,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     const moveResult = processMove(currentPlayerId, result, { ignoreSnakes })
 
     if (moveResult) {
-      animateMovement(currentPlayerId, startPosition, moveResult.position, result, () => {
+      animateMovement(currentPlayerId, startPosition, moveResult.position, result, async () => {
         // Handle collision first
         if (moveResult.collision) {
           setCollisionInfo({
