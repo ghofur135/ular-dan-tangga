@@ -6,6 +6,20 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.3.3] - 2026-01-08
+
+### 📏 UI Fixes & Fun Fact Logic
+
+### Changed
+- ✅ 🖼️ **Fix Board Cropping**: Menyesuaikan perhitungan lebar papan agar pas di layar ponsel dengan margin yang cukup, mengatasi masalah papan terpotong.
+- ✅ ♟️ **Larger Player Tokens**: Memperbesar ukuran pion pemain dari 45% menjadi **75%** agar lebih jelas terlihat.
+- ✅ ⭐ **Fun Fact Logic Refactor**:
+    - **Immediate Display**: Popup muncul **setelah** mendarat (bukan sebelum).
+    - **Auto Close**: Popup menutup otomatis setelah 3 detik.
+    - **Conditional Star**: Ikon bintang hanya muncul jika **Mode Edukasi** aktif.
+
+---
+
 ## [2.3.2] - 2026-01-07
 
 ### 📉 Admin Dashboard & Data Import
@@ -559,6 +573,7 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.3.3 | 2026-01-08 | UI Fixes (Cropping, Token Size), Fun Fact Logic Refactor (Immediate & Auto-close) |
 | 2.3.2 | 2026-01-07 | CSV/JSON Import, Admin Dashboard Stats, Player Mgmt |
 | 2.3.1 | 2026-01-07 | Admin Panel Upgrade: Image Upload, Smart Forms, Visual Selectors |
 | 2.3.0 | 2026-01-06 | Educational Mode (Quizzes & Fun Facts), Mobile Portrait UI, Star Icons |

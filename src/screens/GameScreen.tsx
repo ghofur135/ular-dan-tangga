@@ -605,19 +605,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           setShowEducationModal(true)
           return
         }
-      } else if (prediction.moveType === 'normal' && CUSTOM_BOARD_CONFIG.funFacts && CUSTOM_BOARD_CONFIG.funFacts.includes(prediction.position)) {
-        // Fun Fact Spot!
-        const fact = await educationService.getRandomFact()
-        if (fact) {
-          // No delay needed as visual cue is already on board
 
-          setPendingMove({ result, prediction })
-          setEducationType('fact')
-          setEducationData(fact)
-          setShowEducationModal(true)
-          return
-        }
-      }
     }
 
     const moveResult = processMove(currentPlayerId, result, { ignoreSnakes })
@@ -646,6 +634,21 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         else if (moveResult.moveType === 'bounce') setShowBounceModal(true)
 
         if (checkWin(moveResult.position)) return
+
+        // Fun Fact Logic - Post Move
+        if (isEducationMode && moveResult.moveType === 'normal' && CUSTOM_BOARD_CONFIG.funFacts && CUSTOM_BOARD_CONFIG.funFacts.includes(moveResult.position)) {
+          console.log('Landed on Fun Fact! Showing immediately...')
+          // Show immediately
+          const fact = await educationService.getRandomFact()
+          if (fact) {
+            setEducationType('fact')
+            setEducationData(fact)
+            setShowEducationModal(true)
+          } else {
+            endPlayerTurn()
+          }
+          return
+        }
 
         // Delay based on move type, collision gets extra time
         const delay = moveResult.collision ? 2500 : (moveResult.moveType !== 'normal' ? 2000 : 500)
@@ -1141,10 +1144,18 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         visible={showEducationModal}
         type={educationType}
         data={educationData}
+        autoCloseDuration={educationType === 'fact' ? 3000 : undefined}
         onClose={(success) => {
           setShowEducationModal(false)
 
-          if (!pendingMove || !currentPlayerId) return
+          if (!pendingMove) {
+            // If just closed a fun fact (Post-Move), end turn now
+            if (educationType === 'fact' && currentPlayerId) {
+               endPlayerTurn()
+            }
+            return
+          }
+          if (!currentPlayerId) return
           const { result, prediction } = pendingMove
           const startPosition = players.find(p => p.id === currentPlayerId)?.position || 1
 

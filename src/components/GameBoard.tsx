@@ -120,7 +120,7 @@ const BlinkingStar = ({ size }: { size: number }) => {
  * GameBoard component - 10x10 board with snakes, ladders, and player tokens
  */
 export default function GameBoard({ players, boardTheme: propBoardTheme, highlightedSquare }: GameBoardProps) {
-  const { isAnimating, animatingPlayerId, animationPosition, selectedBoard } = useGameStore()
+  const { isAnimating, animatingPlayerId, animationPosition, selectedBoard, isEducationMode } = useGameStore()
   const { width: screenWidth, height: screenHeight } = useWindowDimensions()
 
   // Use prop if available (for multiplayer), otherwise use store selection (local)
@@ -129,7 +129,7 @@ export default function GameBoard({ players, boardTheme: propBoardTheme, highlig
 
 
   // Calculate responsive board size - fit in available space
-  const maxBoardWidth = screenWidth - 24
+  const maxBoardWidth = screenWidth - 48
   const maxBoardHeight = screenHeight - 280 // Leave space for header, dice, etc
   const BOARD_WIDTH = Math.min(maxBoardWidth, maxBoardHeight, 400)
   const CELL_SIZE = BOARD_WIDTH / BOARD_SIZE
@@ -150,7 +150,7 @@ export default function GameBoard({ players, boardTheme: propBoardTheme, highlig
       for (let col = 0; col < BOARD_SIZE; col++) {
         const squareNum = getSquareNumber(row, col)
         const isWinSquare = squareNum === 100
-        const isFunFactSquare = CUSTOM_BOARD_CONFIG.funFacts && CUSTOM_BOARD_CONFIG.funFacts.includes(squareNum)
+        const isFunFactSquare = isEducationMode && CUSTOM_BOARD_CONFIG.funFacts && CUSTOM_BOARD_CONFIG.funFacts.includes(squareNum)
         // const isHighlighted = squareNum === highlightedSquare // Not using blink anymore per request
 
         // Get players on this square (considering animation position)
@@ -208,7 +208,7 @@ export default function GameBoard({ players, boardTheme: propBoardTheme, highlig
               >
                 <PlayerToken
                   player={player}
-                  size={CELL_SIZE * 0.45}
+                  size={CELL_SIZE * 0.75}
                   isAnimating={isAnimating && player.id === animatingPlayerId}
                 />
               </View>
