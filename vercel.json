@@ -2,5 +2,11 @@
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
   "devCommand": "npm run web",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
