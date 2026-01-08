@@ -31,15 +31,23 @@ export class EducationService {
         let query = supabase.from('education_questions').select('*')
 
         if (categorySlug) {
-            // First get category ID (optimized: assuming we know IDs or doing join, but here simple two-step or join)
-            // Let's do a join or filter by known slugs if mapped. 
-            // Supabase supports filtering by foreign table but it's complex for "random".
-            // Simplified approach: Get all questions of category and pick random (client-side random for small datasets)
+            // First get category ID
+            const { data: catData, error: catError } = await supabase
+                .from('education_categories')
+                .select('id')
+                .eq('slug', categorySlug)
+                .single()
+
+            if (catError || !catData) {
+                console.error('Error finding category:', categorySlug)
+                return null
+            }
+            query = query.eq('category_id', catData.id)
         }
 
-        // For now, let's just fetch a batch and pick random. 
-        // In production with millions of rows, use RPC `random_record`.
-        // Since we have small data, fetch potential candidates.
+        if (difficulty) {
+            query = query.eq('difficulty', difficulty)
+        }
 
         const { data, error } = await query
 
@@ -48,8 +56,6 @@ export class EducationService {
             return null
         }
 
-        // Filter client side for specific category logic if complicate join needed, 
-        // but here we can just pick random.
         const randomIndex = Math.floor(Math.random() * data.length)
         return data[randomIndex]
     }

@@ -10,6 +10,7 @@ interface GameStore {
   // State
   selectedBoard: string
   isEducationMode: boolean
+  educationCategorySlug: string | null
   currentRoom: GameRoom | null
   players: Player[]
   moveHistory: MoveEvent[]
@@ -33,6 +34,7 @@ interface GameStore {
   // Actions
   setSelectedBoard: (boardId: string) => void
   setEducationMode: (enabled: boolean) => void
+  setEducationCategorySlug: (slug: string | null) => void
   updateStats: (isWin: boolean, moves: number) => Promise<void>
   login: (username: string, pin: string, avatar: number) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
@@ -106,7 +108,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // Education Mode
   isEducationMode: false,
+  educationCategorySlug: null,
   setEducationMode: (enabled: boolean) => set({ isEducationMode: enabled }),
+  setEducationCategorySlug: (slug: string | null) => set({ educationCategorySlug: slug }),
 
   // Auth
   updateStats: async (isWin, moves) => {

@@ -118,6 +118,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     getCurrentPlayer,
     isEducationMode,
     setEducationMode,
+    educationCategorySlug
   } = useGameStore()
   const [showWinModal, setShowWinModal] = useState(false)
   const [showPauseModal, setShowPauseModal] = useState(false)
@@ -589,7 +590,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
     // Education Mode Logic Interception
     if (isEducationMode) {
       if (prediction.moveType === 'snake') {
-        const question = await educationService.getRandomQuestion(undefined, 'medium')
+        const question = await educationService.getRandomQuestion(educationCategorySlug || undefined)
         if (question) {
           setPendingMove({ result, prediction })
           setEducationType('quiz')
@@ -598,7 +599,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
           return
         }
       } else if (prediction.moveType === 'ladder') {
-        const question = await educationService.getRandomQuestion(undefined, 'hard') // Harder for ladders!
+        const question = await educationService.getRandomQuestion(educationCategorySlug || undefined) // Any difficulty for ladders now
         if (question) {
           setPendingMove({ result, prediction })
           setEducationType('quiz')

@@ -28,6 +28,7 @@ import {
 } from '../utils/soundUtils'
 import AvatarPicker from '../components/AvatarPicker'
 import BoardPicker from '../components/BoardPicker'
+import EducationCategoryModal from '../components/EducationCategoryModal'
 
 interface HomeScreenProps {
   navigation: any
@@ -54,8 +55,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   const isMobilePortrait = width < 768 && height > width
   const [showGameModeModal, setShowGameModeModal] = useState(false)
+  
+  // Education Category Modal State
+  const [showEduCategoryModal, setShowEduCategoryModal] = useState(false)
 
-  const { createGameRoom, login, logout, checkSession, isAuthenticated, currentUser, user, selectedBoard, setSelectedBoard } = useGameStore()
+  const { createGameRoom, login, logout, checkSession, isAuthenticated, currentUser, user, selectedBoard, setSelectedBoard, setEducationCategorySlug } = useGameStore()
 
   // Custom Alert Helper
   const showCustomAlert = (title: string, message: string) => {
@@ -329,6 +333,18 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* Education Category Selection Modal */}
+      <EducationCategoryModal
+        visible={showEduCategoryModal}
+        onClose={() => setShowEduCategoryModal(false)}
+        onConfirm={(slug) => {
+          setShowEduCategoryModal(false)
+          useGameStore.getState().setEducationMode(true)
+          useGameStore.getState().setEducationCategorySlug(slug)
+          handleQuickPlay()
+        }}
+      />
+
       {/* Game Mode Selection Modal (Mobile Portrait) */}
       <Modal
         transparent
@@ -362,8 +378,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 style={({ pressed }) => [styles.modeItem, styles.modeItemEdu, pressed && styles.btnPressed]}
                 onPress={() => {
                   setShowGameModeModal(false)
-                  useGameStore.getState().setEducationMode(true)
-                  handleQuickPlay()
+                  setShowEduCategoryModal(true)
                 }}
               >
                 <Text style={styles.modeEmoji}>🎓</Text>
@@ -434,8 +449,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 pressed && styles.btnPressed,
               ]}
               onPress={() => {
-                useGameStore.getState().setEducationMode(true)
-                handleQuickPlay()
+                setShowEduCategoryModal(true)
               }}
             >
               <Text style={styles.btnEducationText}>🎓 Edu Mode</Text>

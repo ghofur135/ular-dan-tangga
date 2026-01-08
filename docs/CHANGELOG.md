@@ -6,6 +6,22 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.4.0] - 2026-01-08
+
+### 📚 Education Category Selection
+
+### Added
+- ✅ 🎓 **Subject Selection Modal**: Pemain sekarang bisa memilih kategori pelajaran (contoh: "Kelas 2 SD Umum") saat masuk ke Mode Edukasi.
+    - 💡 **UI UX**: Tampilan Modal dropdown yang intuitif dengan icon buku.
+    - 🔄 **Feature Flow**: Klik "Edu Mode" -> Pilih Kategori -> Main Game.
+- ✅ 🎯 **Contextual Questions**: Soal-soal kuis yang muncul saat kena ular/tangga sekarang **sesuai dengan kategori yang dipilih**.
+- ✅ 🌍 **Global Fun Facts**: Fakta unik tetap bersifat global (random dari semua kategori) untuk variasi wawasan yang lebih luas.
+
+### Fixed
+- ✅ 🐛 **Question Fetching Bug**: Memperbaiki masalah di mana pertanyaan tidak muncul saat kena tangga (sebelumnya strict filter 'Hard', sekarang lebih fleksibel mengambil semua soal yang tersedia di kategori tersebut).
+
+---
+
 ## [2.3.5] - 2026-01-08
 
 ### 🔒 Education Admin Security & Data
@@ -599,6 +615,7 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.4.0 | 2026-01-08 | Education Category Selection (Select Subject) & Contextual Questions |
 | 2.3.5 | 2026-01-08 | Education Admin Security (RLS & Real Auth) + Data Seeding (60 Questions) |
 | 2.3.4 | 2026-01-08 | True Responsive Board (onLayout measurement) |
 | 2.3.3 | 2026-01-08 | UI Fixes (Cropping, Token Size), Fun Fact Logic Refactor (Immediate & Auto-close) |
