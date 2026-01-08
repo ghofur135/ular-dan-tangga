@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { supabase } from '../../config/supabase'
 import {
     View,
     Text,
@@ -18,13 +19,28 @@ interface AdminLoginProps {
 export default function AdminLoginScreen({ navigation }: AdminLoginProps) {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
+    const [loading, setLoading] = useState(false)
 
-    const handleLogin = () => {
-        if (email === 'admin@teknowiz.web.id' && password === 'Teknowiz25#!') {
+    const handleLogin = async () => {
+        if (!email || !password) {
+            Alert.alert('Error', 'Please enter both email and password.')
+            return
+        }
+
+        setLoading(true)
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            })
+
+            if (error) throw error
+
             navigation.replace('AdminDashboard')
-        } else {
-            Alert.alert('Access Denied', 'Invalid credentials.')
-            // console.log('Login failed', email, password)
+        } catch (error: any) {
+            Alert.alert('Login Failed', error.message || 'Invalid credentials')
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -59,7 +75,7 @@ export default function AdminLoginScreen({ navigation }: AdminLoginProps) {
                     </View>
 
                     <Pressable style={styles.loginButton} onPress={handleLogin}>
-                        <Text style={styles.loginButtonText}>Login</Text>
+                        <Text style={styles.loginButtonText}>{loading ? 'Logging in...' : 'Login'}</Text>
                     </Pressable>
                 </View>
             </KeyboardAvoidingView>

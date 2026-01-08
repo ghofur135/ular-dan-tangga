@@ -6,6 +6,20 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.3.5] - 2026-01-08
+
+### 🔒 Education Admin Security & Data
+
+### Fixed
+- ✅ 🛡️ **RLS Policies for Education**: Menambahkan policy Row Level Security untuk tabel `education_categories`, `education_questions`, dan `education_facts` agar admin yang terautentikasi bisa Create/Update/Delete data.
+- ✅ 🔐 **Real Admin Auth**: Memperbaiki halaman login admin yang sebelumnya menggunakan "fake login" menjadi **Real Supabase Auth** (`signInWithPassword`). RLS policy sekarang berfungsi dengan benar.
+
+### Added
+- ✅ 🌱 **Data Seeding Script**: Script otomatis (`scripts/seed-paket-soal.js`) untuk memasukkan paket soal dari file Markdown ke database.
+- ✅ 📚 **New Question Bank**: Menambahkan 60 soal baru untuk "Kelas 2 SD Umum" dari Paket 1 & 2.
+
+---
+
 ## [2.3.4] - 2026-01-08
 
 ### 📱 Responsive Layout Fixed
@@ -585,6 +599,7 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.3.5 | 2026-01-08 | Education Admin Security (RLS & Real Auth) + Data Seeding (60 Questions) |
 | 2.3.4 | 2026-01-08 | True Responsive Board (onLayout measurement) |
 | 2.3.3 | 2026-01-08 | UI Fixes (Cropping, Token Size), Fun Fact Logic Refactor (Immediate & Auto-close) |
 | 2.3.2 | 2026-01-07 | CSV/JSON Import, Admin Dashboard Stats, Player Mgmt |
