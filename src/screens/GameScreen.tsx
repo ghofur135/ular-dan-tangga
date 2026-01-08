@@ -128,6 +128,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
   const [showLadderModal, setShowLadderModal] = useState(false)
   const [showBounceModal, setShowBounceModal] = useState(false)
   const [showCollisionModal, setShowCollisionModal] = useState(false)
+  const [boardAreaDimensions, setBoardAreaDimensions] = useState({ width: 0, height: 0 })
   const [collisionInfo, setCollisionInfo] = useState<{ bumpedPlayerName: string; fromPosition: number; toPosition: number } | null>(null)
   const [showWinnerModal, setShowWinnerModal] = useState(false)
   const [winnerName, setWinnerName] = useState<string>('')
@@ -985,8 +986,20 @@ export default function GameScreen({ navigation }: GameScreenProps) {
       </View>
 
       {/* Game Board - Flex to fill available space */}
-      <View style={styles.boardContainer}>
-        <GameBoard players={players} highlightedSquare={highlightedSquare} />
+      {/* Game Board - Flex to fill available space */}
+      <View 
+        style={styles.boardContainer}
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout
+          setBoardAreaDimensions({ width, height })
+        }}
+      >
+        <GameBoard 
+          players={players} 
+          highlightedSquare={highlightedSquare} 
+          availableWidth={boardAreaDimensions.width}
+          availableHeight={boardAreaDimensions.height}
+        />
       </View>
 
       {/* Power Ups (Floating or Row) */}

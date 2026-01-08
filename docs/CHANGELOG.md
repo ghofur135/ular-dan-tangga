@@ -6,6 +6,18 @@ Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan project ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.3.4] - 2026-01-08
+
+### 📱 Responsive Layout Fixed
+
+### Fixed
+- ✅ 📐 **True Responsive Board**: Mengganti perhitungan fixed height dengan pengukuran dinamis (`onLayout`).
+    - Papan sekarang otomatis menyesuaikan diri dengan ruang yang tersedia di layar.
+    - Mengatasi masalah tampilan pada perangkat dengan ratio layar panjang atau high density (1080x2400).
+    - Mencegah papan menutupi nama pemain atau tombol kontrol bawah.
+
+---
+
 ## [2.3.3] - 2026-01-08
 
 ### 📏 UI Fixes & Fun Fact Logic
@@ -573,6 +585,7 @@ Rilis pertama Snake & Ladder Game dengan fitur lengkap untuk single player dan m
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.3.4 | 2026-01-08 | True Responsive Board (onLayout measurement) |
 | 2.3.3 | 2026-01-08 | UI Fixes (Cropping, Token Size), Fun Fact Logic Refactor (Immediate & Auto-close) |
 | 2.3.2 | 2026-01-07 | CSV/JSON Import, Admin Dashboard Stats, Player Mgmt |
 | 2.3.1 | 2026-01-07 | Admin Panel Upgrade: Image Upload, Smart Forms, Visual Selectors |

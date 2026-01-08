@@ -13,6 +13,8 @@ interface GameBoardProps {
   players: Player[]
   boardTheme?: string // Optional prop for multiplayer
   highlightedSquare?: number | null
+  availableWidth?: number
+  availableHeight?: number
 }
 
 const BOARD_SIZE = 10
@@ -119,7 +121,7 @@ const BlinkingStar = ({ size }: { size: number }) => {
 /**
  * GameBoard component - 10x10 board with snakes, ladders, and player tokens
  */
-export default function GameBoard({ players, boardTheme: propBoardTheme, highlightedSquare }: GameBoardProps) {
+export default function GameBoard({ players, boardTheme: propBoardTheme, highlightedSquare, availableWidth, availableHeight }: GameBoardProps) {
   const { isAnimating, animatingPlayerId, animationPosition, selectedBoard, isEducationMode } = useGameStore()
   const { width: screenWidth, height: screenHeight } = useWindowDimensions()
 
@@ -128,9 +130,13 @@ export default function GameBoard({ players, boardTheme: propBoardTheme, highlig
   const boardTheme = getBoardThemeById(themeId)
 
 
+
   // Calculate responsive board size - fit in available space
-  const maxBoardWidth = screenWidth - 48
-  const maxBoardHeight = screenHeight - 380 // Leave space for header, dice, etc
+  // If available dimension is provided via onLayout (flex parent), use that (minus padding)
+  // Otherwise fallback to whole screen dims (minus manual safe area)
+  const maxBoardWidth = availableWidth ? availableWidth - 16 : screenWidth - 48
+  const maxBoardHeight = availableHeight ? availableHeight - 8 : screenHeight - 380
+
   const BOARD_WIDTH = Math.min(maxBoardWidth, maxBoardHeight, 400)
   const CELL_SIZE = BOARD_WIDTH / BOARD_SIZE
 
