@@ -130,7 +130,7 @@ export default function GameBoard({ players, boardTheme: propBoardTheme, highlig
 
   // Calculate responsive board size - fit in available space
   const maxBoardWidth = screenWidth - 48
-  const maxBoardHeight = screenHeight - 280 // Leave space for header, dice, etc
+  const maxBoardHeight = screenHeight - 380 // Leave space for header, dice, etc
   const BOARD_WIDTH = Math.min(maxBoardWidth, maxBoardHeight, 400)
   const CELL_SIZE = BOARD_WIDTH / BOARD_SIZE
 
