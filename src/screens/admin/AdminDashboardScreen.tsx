@@ -10,6 +10,7 @@ import {
     Modal,
     TextInput,
     Image,
+    Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { educationService } from '../../services/educationService'
@@ -61,20 +62,22 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardProps
                     <Text style={styles.sidebarTitle}>{isMobile ? 'Admin' : 'S&L Admin'}</Text>
 
                     <View style={styles.menuContainer}>
-                        <MenuItem label="Dashboard" isActive={activeMenu === 'dashboard'} onPress={() => setActiveMenu('dashboard')} />
-                        <MenuItem label="Players" isActive={activeMenu === 'players'} onPress={() => setActiveMenu('players')} />
-                        <MenuItem label="Leader Boards" isActive={activeMenu === 'leaderboards'} onPress={() => setActiveMenu('leaderboards')} />
-                        <MenuItem label="Edu Mode" isActive={activeMenu === 'edu_mode'} onPress={() => setActiveMenu('edu_mode')} />
+                        <MenuItem label="Dashboard" icon="📊" isActive={activeMenu === 'dashboard'} onPress={() => setActiveMenu('dashboard')} isMobile={isMobile} />
+                        <MenuItem label="Players" icon="👥" isActive={activeMenu === 'players'} onPress={() => setActiveMenu('players')} isMobile={isMobile} />
+                        <MenuItem label="Leader Boards" icon="🏆" isActive={activeMenu === 'leaderboards'} onPress={() => setActiveMenu('leaderboards')} isMobile={isMobile} />
+                        <MenuItem label="Edu Mode" icon="🎓" isActive={activeMenu === 'edu_mode'} onPress={() => setActiveMenu('edu_mode')} isMobile={isMobile} />
                     </View>
 
                     <Pressable style={styles.logoutButton} onPress={handleLogout}>
-                        <Text style={styles.logoutText}>Logout</Text>
+                        <Text style={styles.logoutText}>{isMobile ? '🚪' : 'Logout'}</Text>
                     </Pressable>
                 </View>
 
                 {/* CONTENT AREA */}
-                <View style={styles.contentArea}>
-                    {renderContent()}
+                <View style={[styles.contentArea, isMobile && styles.contentAreaMobile]}>
+                    <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+                        {renderContent()}
+                    </ScrollView>
                 </View>
             </View>
         </SafeAreaView>
@@ -83,12 +86,13 @@ export default function AdminDashboardScreen({ navigation }: AdminDashboardProps
 
 // === COMPONENTS ===
 
-const MenuItem = ({ label, isActive, onPress }: { label: string, isActive: boolean, onPress: () => void }) => (
+const MenuItem = ({ label, icon, isActive, onPress, isMobile }: { label: string, icon: string, isActive: boolean, onPress: () => void, isMobile: boolean }) => (
     <Pressable
-        style={[styles.menuItem, isActive && styles.menuItemActive]}
+        style={[styles.menuItem, isActive && styles.menuItemActive, isMobile && { justifyContent: 'center', paddingHorizontal: 0 }]}
         onPress={onPress}
     >
-        <Text style={[styles.menuText, isActive && styles.menuTextActive]}>{label}</Text>
+        <Text style={{ fontSize: 20 }}>{icon}</Text>
+        {!isMobile && <Text style={[styles.menuText, isActive && styles.menuTextActive]}>{label}</Text>}
     </Pressable>
 )
 
@@ -302,16 +306,23 @@ const EduCategoriesManager = () => {
     }
 
     const handleDelete = (id: number) => {
-        Alert.alert('Konfirmasi Hapus', 'Apakah anda yakin ingin menghapus kategori ini?', [
-            { text: 'Batal', style: 'cancel' },
-            {
-                text: 'Ya, Hapus', style: 'destructive', onPress: async () => {
-                    const s = await educationService.deleteCategory(id)
-                    if (s) fetchCats()
-                    else Alert.alert('Error', 'Gagal menghapus')
-                }
+        const doDelete = async () => {
+             const s = await educationService.deleteCategory(id)
+             if (s) fetchCats()
+             else Alert.alert('Error', 'Gagal menghapus')
+        }
+
+        if (Platform.OS === 'web') {
+            // @ts-ignore
+            if (confirm('Apakah anda yakin ingin menghapus kategori ini?')) {
+                doDelete()
             }
-        ])
+        } else {
+            Alert.alert('Konfirmasi Hapus', 'Apakah anda yakin ingin menghapus kategori ini?', [
+                { text: 'Batal', style: 'cancel' },
+                { text: 'Ya, Hapus', style: 'destructive', onPress: doDelete }
+            ])
+        }
     }
 
     const paginatedItems = categories.slice(page * itemsPerPage, (page + 1) * itemsPerPage)
@@ -502,15 +513,22 @@ const EduQuestionsManager = () => {
     }
 
     const handleDelete = (id: number) => {
-        Alert.alert('Konfirmasi Hapus', 'Yakin hapus pertanyaan ini?', [
-            { text: 'Batal', style: 'cancel' },
-            {
-                text: 'Ya, Hapus', style: 'destructive', onPress: async () => {
-                    const s = await educationService.deleteQuestion(id)
-                    if (s) fetchData()
-                }
+        const doDelete = async () => {
+             const s = await educationService.deleteQuestion(id)
+             if (s) fetchData()
+        }
+
+        if (Platform.OS === 'web') {
+            // @ts-ignore
+            if (confirm('Yakin hapus pertanyaan ini?')) {
+                doDelete()
             }
-        ])
+        } else {
+            Alert.alert('Konfirmasi Hapus', 'Yakin hapus pertanyaan ini?', [
+                { text: 'Batal', style: 'cancel' },
+                { text: 'Ya, Hapus', style: 'destructive', onPress: doDelete }
+            ])
+        }
     }
 
     const handleImport = async () => {
@@ -863,15 +881,22 @@ const EduFactsManager = () => {
     }
 
     const handleDelete = (id: number) => {
-        Alert.alert('Konfirmasi Hapus', 'Yakin hapus fakta ini?', [
-            { text: 'Batal', style: 'cancel' },
-            {
-                text: 'Ya, Hapus', style: 'destructive', onPress: async () => {
-                    const s = await educationService.deleteFact(id)
-                    if (s) fetchFacts()
-                }
+        const doDelete = async () => {
+             const s = await educationService.deleteFact(id)
+             if (s) fetchFacts()
+        }
+
+        if (Platform.OS === 'web') {
+            // @ts-ignore
+            if (confirm('Yakin hapus fakta ini?')) {
+                doDelete()
             }
-        ])
+        } else {
+            Alert.alert('Konfirmasi Hapus', 'Yakin hapus fakta ini?', [
+                { text: 'Batal', style: 'cancel' },
+                { text: 'Ya, Hapus', style: 'destructive', onPress: doDelete }
+            ])
+        }
     }
 
     const paginatedItems = facts.slice(page * itemsPerPage, (page + 1) * itemsPerPage)
@@ -970,7 +995,9 @@ const styles = StyleSheet.create({
     logoutText: { color: 'white', fontWeight: '700', fontSize: 16 },
 
     // Content
+    // Content
     contentArea: { flex: 1, padding: 32 },
+    contentAreaMobile: { padding: 16 },
     viewContainer: { flex: 1, gap: 24 },
     viewTitle: { fontSize: 32, fontWeight: '800', color: '#111827', marginBottom: 8 },
 

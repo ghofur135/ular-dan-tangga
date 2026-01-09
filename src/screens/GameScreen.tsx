@@ -1159,7 +1159,7 @@ export default function GameScreen({ navigation }: GameScreenProps) {
         visible={showEducationModal}
         type={educationType}
         data={educationData}
-        autoCloseDuration={educationType === 'fact' ? 3000 : undefined}
+        autoCloseDuration={educationType === 'fact' ? 5000 : undefined}
         onClose={(success) => {
           setShowEducationModal(false)
 
