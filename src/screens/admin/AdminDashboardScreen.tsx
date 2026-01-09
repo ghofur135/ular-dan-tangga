@@ -585,8 +585,17 @@ const EduQuestionsManager = () => {
 
     const getCatName = (id: number) => categories.find(c => c.id === id)?.title || `ID:${id}`
 
-    const paginatedItems = questions.slice(page * itemsPerPage, (page + 1) * itemsPerPage)
-    const totalPages = Math.ceil(questions.length / itemsPerPage)
+    const [filterQuery, setFilterQuery] = useState('')
+    const [filterCat, setFilterCat] = useState<string>('all')
+
+    const filteredQuestions = questions.filter(q => {
+        const matchText = q.question.toLowerCase().includes(filterQuery.toLowerCase())
+        const matchCat = filterCat === 'all' || String(q.category_id) === filterCat
+        return matchText && matchCat
+    })
+
+    const paginatedItems = filteredQuestions.slice(page * itemsPerPage, (page + 1) * itemsPerPage)
+    const totalPages = Math.ceil(filteredQuestions.length / itemsPerPage)
 
     const parsedOptions = optionsStr.split(',').map(s => s.trim()).filter(s => s !== '')
 
@@ -597,6 +606,72 @@ const EduQuestionsManager = () => {
 
     return (
         <View style={{ flex: 1 }}>
+            {/* Filters Row */}
+            <View style={{ flexDirection: isMobile ? 'column' : 'row', gap: 12, marginBottom: 20, alignItems: 'center' }}>
+                <View style={{ flex: 2, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: 12, height: 48, shadowColor: '#000', shadowOpacity: 0.02, shadowRadius: 5 }}>
+                    <Text style={{ fontSize: 18, marginRight: 8, opacity: 0.5 }}>🔍</Text>
+                    <TextInput
+                        style={{ flex: 1, fontSize: 16, color: '#1F2937', height: '100%' }}
+                        placeholder="Search questions..."
+                        placeholderTextColor="#9CA3AF"
+                        value={filterQuery}
+                        onChangeText={(t) => { setFilterQuery(t); setPage(0); }}
+                    />
+                    {filterQuery.length > 0 && (
+                        <Pressable onPress={() => setFilterQuery('')}>
+                            <Text style={{ fontSize: 16, color: '#9CA3AF' }}>✕</Text>
+                        </Pressable>
+                    )}
+                </View>
+                
+                <View style={{ flex: 1, zIndex: 10,  minWidth: isMobile ? '100%' : 200 }}>
+                     {Platform.OS === 'web' ? (
+                        <View style={{ height: 48, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 4}}>
+                            <select
+                                value={filterCat}
+                                onChange={(e) => { setFilterCat(e.target.value); setPage(0); }}
+                                style={{ 
+                                    height: '100%', width: '100%', border: 'none', outline: 'none', background: 'transparent',
+                                    fontSize: 15, padding: '0 8px', color: '#374151', cursor: 'pointer', 
+                                    fontFamily: 'System, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+                                }}
+                            >
+                                <option value="all">📂 All Categories</option>
+                                {categories.map(c => (
+                                    <option key={c.id} value={String(c.id)}>{c.title}</option>
+                                ))}
+                            </select>
+                        </View>
+                     ) : (
+                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                             <Pressable 
+                                onPress={() => { setFilterCat('all'); setPage(0); }}
+                                style={{
+                                    paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1,
+                                    backgroundColor: filterCat === 'all' ? '#3B82F6' : '#fff',
+                                    borderColor: filterCat === 'all' ? '#3B82F6' : '#E5E7EB',
+                                    elevation: filterCat === 'all' ? 2 : 0
+                                }}>
+                                <Text style={{ color: filterCat === 'all' ? 'white' : '#4B5563', fontWeight: '600', fontSize: 13 }}>All</Text>
+                             </Pressable>
+                             {categories.map(c => (
+                                <Pressable 
+                                    key={c.id} 
+                                    onPress={() => { setFilterCat(String(c.id)); setPage(0); }}
+                                    style={{
+                                        paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1,
+                                        backgroundColor: filterCat === String(c.id) ? '#3B82F6' : '#fff',
+                                        borderColor: filterCat === String(c.id) ? '#3B82F6' : '#E5E7EB',
+                                        elevation: filterCat === String(c.id) ? 2 : 0
+                                    }}>
+                                    <Text style={{ color: filterCat === String(c.id) ? 'white' : '#4B5563', fontWeight: '600', fontSize: 13 }}>{c.title}</Text>
+                                </Pressable>
+                             ))}
+                         </ScrollView>
+                     )}
+                </View>
+            </View>
+
             <View style={styles.actionRow}>
                 <Text style={styles.subHeader}>Questions</Text>
                 <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
