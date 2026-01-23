@@ -16,41 +16,17 @@ interface PlayerTokenProps {
 export default function PlayerToken({ player, size = 24, isAnimating = false }: PlayerTokenProps) {
   const initial = player.name.charAt(0).toUpperCase()
   const isBot = player.id.startsWith('bot-')
+  
   const hasAvatar = player.avatar && player.avatar > 0
-  const [sound, setSound] = useState<Audio.Sound | null>(null)
   
   // Animation values
   const scaleAnim = useRef(new Animated.Value(1)).current
   const bounceAnim = useRef(new Animated.Value(0)).current
 
-  // Cleanup sound on unmount
-  useEffect(() => {
-    return () => {
-      if (sound) {
-        sound.unloadAsync()
-      }
-    }
-  }, [sound])
-
-  // Play move sound
-  const playMoveSound = async () => {
-    try {
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        require('../../assets/sound/move-player.mp3')
-      )
-      setSound(newSound)
-      await newSound.playAsync()
-    } catch (error) {
-      console.log('Error playing move sound:', error)
-    }
-  }
 
   // Bounce animation when moving
   useEffect(() => {
     if (isAnimating) {
-      // Play move sound
-      playMoveSound()
-      
       // Bounce effect
       Animated.sequence([
         Animated.timing(scaleAnim, {

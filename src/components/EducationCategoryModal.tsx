@@ -9,6 +9,8 @@ import {
   FlatList,
   Dimensions
 } from 'react-native'
+import { BlurView } from 'expo-blur'
+import { LinearGradient } from 'expo-linear-gradient'
 import { educationService } from '../services/educationService'
 import { EducationCategory } from '../types/education'
 
@@ -48,14 +50,27 @@ export default function EducationCategoryModal({ visible, onClose, onConfirm }: 
     const isSelected = selectedSlug === item.slug
     return (
       <Pressable
-        style={[styles.categoryItem, isSelected && styles.selectedItem]}
+        style={({pressed}) => [
+            styles.categoryItem,
+            isSelected && styles.selectedItem,
+            pressed && styles.pressedItem
+        ]}
         onPress={() => setSelectedSlug(item.slug)}
       >
-        <Text style={[styles.categoryIcon, isSelected && styles.selectedText]}>📚</Text>
-        <Text style={[styles.categoryTitle, isSelected && styles.selectedText]}>
-          {item.title}
-        </Text>
-        {isSelected && <Text style={styles.checkIcon}>✅</Text>}
+        <LinearGradient
+            colors={isSelected ? ['#06b6d4', '#3b82f6'] : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']}
+            style={styles.itemGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+        >
+            <View style={styles.iconCircle}>
+                <Text style={styles.categoryIcon}>📚</Text>
+            </View>
+            <Text style={[styles.categoryTitle, isSelected && styles.selectedText]}>
+            {item.title}
+            </Text>
+            {isSelected && <Text style={styles.checkIcon}>✅</Text>}
+        </LinearGradient>
       </Pressable>
     )
   }
@@ -64,25 +79,29 @@ export default function EducationCategoryModal({ visible, onClose, onConfirm }: 
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <BlurView intensity={20} tint="dark" style={styles.overlay}>
         <View style={styles.container}>
+            {/* Header Line */}
+          <View style={styles.headerLine} />
+          
           <Text style={styles.title}>Pilih Materi Belajar 🎓</Text>
           <Text style={styles.subtitle}>
             Pilih kategori soal yang ingin kamu pelajari sambil bermain.
           </Text>
 
           {loading ? (
-            <ActivityIndicator size="large" color="#15803D" style={{ marginVertical: 40 }} />
+            <ActivityIndicator size="large" color="#06b6d4" style={{ marginVertical: 40 }} />
           ) : (
             <FlatList
               data={categories}
               keyExtractor={(item) => item.id.toString()}
               renderItem={renderItem}
               contentContainerStyle={styles.listContent}
-              style={{ maxHeight: 300 }}
+              style={{ maxHeight: 300, width: '100%' }}
+              showsVerticalScrollIndicator={false}
             />
           )}
 
@@ -95,11 +114,22 @@ export default function EducationCategoryModal({ visible, onClose, onConfirm }: 
               onPress={handleConfirm}
               disabled={!selectedSlug}
             >
-              <Text style={styles.confirmText}>Mulai Main 🚀</Text>
+                {selectedSlug ? (
+                     <LinearGradient
+                        colors={['#06b6d4', '#3b82f6']}
+                        style={styles.btnGradient}
+                    >
+                        <Text style={styles.confirmText}>Mulai Main 🚀</Text>
+                    </LinearGradient>
+                ) : (
+                    <View style={styles.btnGradient}>
+                         <Text style={styles.confirmText}>Mulai Main 🚀</Text>
+                    </View>
+                )}
             </Pressable>
           </View>
         </View>
-      </View>
+      </BlurView>
     </Modal>
   )
 }
@@ -113,27 +143,40 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   container: {
-    backgroundColor: 'white',
-    borderRadius: 24,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderRadius: 30,
     padding: 24,
     width: '100%',
     maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)', // Cyan border
+    alignItems: 'center',
+    shadowColor: '#06b6d4', // Neon glow
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
     elevation: 10,
+  },
+  headerLine: {
+      width: 40,
+      height: 4,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      borderRadius: 2,
+      marginBottom: 20,
   },
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#15803D',
+    color: 'white',
     textAlign: 'center',
     marginBottom: 8,
+    textShadowColor: 'rgba(6, 182, 212, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#94a3b8',
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -141,66 +184,90 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   categoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    padding: 16,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 8,
   },
   selectedItem: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#15803D',
+    borderColor: '#06b6d4',
+  },
+  pressedItem: {
+      opacity: 0.8,
+  },
+  itemGradient: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+  },
+  iconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.1)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
   },
   categoryIcon: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: 20,
   },
   categoryTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#374151',
+    color: '#e2e8f0',
     flex: 1,
   },
   selectedText: {
-    color: '#15803D',
+    color: 'white',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   checkIcon: {
     fontSize: 16,
+    color: 'white',
   },
   footer: {
     flexDirection: 'row',
     gap: 12,
     marginTop: 24,
+    width: '100%',
   },
   cancelBtn: {
     flex: 1,
-    padding: 14,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   cancelText: {
-    color: '#4B5563',
+    color: '#cbd5e1',
     fontWeight: '700',
   },
   confirmBtn: {
     flex: 1.5,
-    padding: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#15803D',
-    borderRadius: 14,
-    shadowColor: '#15803D',
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+    shadowColor: '#06b6d4',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
+  btnGradient: {
+      width: '100%',
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+  },
   disabledBtn: {
-    backgroundColor: '#9CA3AF',
+    opacity: 0.5,
     shadowOpacity: 0,
     elevation: 0,
   },

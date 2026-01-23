@@ -62,61 +62,8 @@ const getSquareNumber = (row: number, col: number): number => {
   return actualRow * BOARD_SIZE + actualCol + 1
 }
 
-const BlinkingStar = ({ size }: { size: number }) => {
-  const opacity = useRef(new Animated.Value(0.3)).current
-  const scale = useRef(new Animated.Value(0.8)).current
+// BlinkingStar removed as it was unused and potential noise
 
-  useEffect(() => {
-    const blink = Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(opacity, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0.3,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.sequence([
-          Animated.timing(scale, {
-            toValue: 1.2,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scale, {
-            toValue: 0.8,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-        ])
-      ])
-    )
-    blink.start()
-    return () => blink.stop()
-  }, [])
-
-  return (
-    <Animated.View
-      style={{
-        position: 'absolute',
-        width: size,
-        height: size,
-        justifyContent: 'center',
-        alignItems: 'center',
-        opacity: opacity,
-        transform: [{ scale: scale }],
-        zIndex: 5,
-        // No background color, just the icon
-      }}
-    >
-      <Text style={{ fontSize: size * 0.6 }}>⭐</Text>
-    </Animated.View>
-  )
-}
 
 /**
  * GameBoard component - 10x10 board with snakes, ladders, and player tokens

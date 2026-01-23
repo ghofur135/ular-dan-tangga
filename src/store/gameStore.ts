@@ -170,6 +170,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const jsonValue = await AsyncStorage.getItem('user_session')
       if (jsonValue != null) {
         const user = JSON.parse(jsonValue) as RegisteredUser
+        // Prevent infinite loop: Only update if user changed or not authenticated
+        const state = get() // Access current state via get() from create arguments
+        if (state.currentUser?.id === user.id && state.isAuthenticated) {
+             return
+        }
+
         set({
           currentUser: user,
           isAuthenticated: true,
